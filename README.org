@@ -1,0 +1,12 @@
+#+TITLE: Diff of Services
+
+Diff of Services allows you to keep track of the changes to the Terms of Services, Privacy Policies, and other legal documents you may be subjected to reading throughout your time.
+
+* Reason
+I dislike how long Terms of Services tend to be, but I deem it necessary for me to read them in their entirety. Unfortunately, the companies have a tendency to randomly change things, which becomes prohibitively expensive to re-read it each time there is a change, as it can often be minor. Thus I am creating this utility so that one can keep track of the changes and merely look over a diff of the changes between document version, to make it more feasible to read every version of the terms of service to which one agrees.
+
+* Structure
+This project will consist of a few crates (so yes in Rust) which will be developed in (approximately) the following order: a core api for managing things, a CLI to query or add documents, a Ratatui TUI to make easier viewing, a cross-platform Dioxus GUI, and finally a self-hostable server so one can sync between their various devices.
+
+* License
+This project is licensed under the MIT license. You can do what you want with the code, just please attribute the original code to me.
