@@ -8,5 +8,44 @@ I dislike how long Terms of Services tend to be, but I deem it necessary for me 
 * Structure
 This project will consist of a few crates (so yes in Rust) which will be developed in (approximately) the following order: a core api for managing things, a CLI to query or add documents, a Ratatui TUI to make easier viewing, a cross-platform Dioxus GUI, and finally a self-hostable server so one can sync between their various devices.
 
+* Roadmap
+Starting with CLI access until specified otherwise
+
+- [ ] Nix package for CLI
+- [ ] Create document
+- [ ] Be able to add new revisions to the document
+  - [ ] Keep track of date added and last date checked separately?
+  - [ ] Be able to move between revisions
+  - [ ] Ignore adding a revision if unchanged, instead updated last checked field
+- [ ] Paragraph added/removed diff (basic)
+- [ ] Initial TUI work
+  - [ ] Nix package for TUI
+  - [ ] View documents, move between revision
+  - [ ] Inline diff
+  - [ ] Add documents (drag-and-drop vs copy-paste?)
+- [ ] Initial GUI work (unless we just roll in with trolley and do a TUI-GUI)
+  - [ ] Nix package for GUI
+  - [ ] View documents, move between revisions
+  - [ ] Inline diff
+  - [ ] Add documents
+
+At this point, this is the basic functionality for a single-device setup. We have a few options of directions to go after this
+- [ ] Improved diffing
+  - [ ] 2-way diff
+  - [ ] Paragraph movement in diffs
+  - [ ] If paragraph add-remove combo, do a sub-paragraph diff (word-by word, myers diff type idea)
+- [ ] Nix module instead of just package
+- [ ] Self-hosted sync server
+  - [ ] Nix package and module (nixos vs hm?) for server
+  - [ ] Central storage, client support remote connection
+  - [ ] Clients keep local copy of latest revision of all (or maybe allow selection) docs + changes since last sync
+  - [ ] Docker image
+- [ ] Extract from HTML document
+  - [ ] Check for update
+  - [ ] Once server implemented, also support autoupdate
+- [ ] If we're feeling ambitions, maybe even browser extension
+  - [ ] On login / signup prompts (i.e. where "by click you agree to ... ") show if the stored revision is different that the linked one
+  - [ ] One click add to document store (with HTML extraction)
+
 * License
 This project is licensed under the MIT license. You can do what you want with the code, just please attribute the original code to me.
