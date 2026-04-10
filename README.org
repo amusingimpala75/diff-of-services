@@ -11,7 +11,7 @@ This project will consist of a few crates (so yes in Rust) which will be develop
 * Roadmap
 Starting with CLI access until specified otherwise
 
-- [ ] Nix package for CLI
+- [X] Nix package for CLI
 - [ ] Create document
 - [ ] Be able to add new revisions to the document
   - [ ] Keep track of date added and last date checked separately?
