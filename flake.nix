@@ -29,6 +29,19 @@
                 lockFile = ./Cargo.lock;
               };
 
+              nativeBuildInputs = [ pkgs.installShellFiles ];
+
+              postInstall = ''
+                $out/bin/dos-cli util generate manpages
+                installManPage man/*.1
+
+                $out/bin/dos-cli util generate shell-completions
+                installShellCompletion \
+                  --bash completions/dos.bash \
+                  --zsh completions/_dos \
+                  --fish completions/dos.fish
+              '';
+
               meta = {
                 description = "CLI for diff-of-services, a ToS tracking / diff tool";
                 homepage = "https://github.com/amusingimpala75/amusingimpala75/diff-of-services";
@@ -38,11 +51,8 @@
             };
 
           devShells.default = pkgs.mkShell {
-            packages = with pkgs; [
-              cargo
-              rustc
-              rustfmt
-            ];
+            inputsFrom = [ self'.packages.cli ];
+            packages = [ pkgs.rustfmt ];
           };
         };
     };
