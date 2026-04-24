@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use clap_complete::{generate_to, Shell};
 
 #[derive(Parser)]
-#[command()]
+#[command(name = "dos", author, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -50,12 +51,27 @@ fn main() {
                 Generated::ShellCompletions => {
                     let out = match out {
                         Some(path) => path,
-                        None => PathBuf::from("./completion"),
+                        None => PathBuf::from("./completions"),
                     };
 
                     let s = out.display();
 
-                    println!("generating shell completions to {s}")
+                    println!("generating shell completions to {s}");
+
+                    let err =
+                        Shell::value_variants()
+                            .iter()
+                            .fold(fs::create_dir(&out), |err, &sh| match err {
+                                Ok(()) => {
+                                    generate_to(sh, &mut Cli::command(), "dos", &out).map(|_| ())
+                                }
+                                Err(_) => err,
+                            });
+
+                    match err {
+                        Err(_) => eprintln!("Error writing shell completions"),
+                        Ok(()) => {}
+                    }
                 }
             },
         },
