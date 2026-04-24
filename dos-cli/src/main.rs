@@ -2,6 +2,7 @@ use std::{fs, path::PathBuf};
 
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{generate_to, Shell};
+use clap_mangen;
 
 #[derive(Parser)]
 #[command(name = "dos", author, version, about, long_about = None)]
@@ -47,6 +48,13 @@ fn main() {
                     let s = out.display();
 
                     println!("generating manpages to {s}");
+
+                    let err = fs::create_dir(&out)
+                        .and_then(|_| clap_mangen::generate_to(Cli::command(), &out));
+                    match err {
+                        Ok(()) => {}
+                        Err(err) => eprintln!("Error writing manpages: {err}"),
+                    }
                 }
                 Generated::ShellCompletions => {
                     let out = match out {
@@ -61,11 +69,10 @@ fn main() {
                     let err =
                         Shell::value_variants()
                             .iter()
-                            .fold(fs::create_dir(&out), |err, &sh| match err {
-                                Ok(()) => {
+                            .fold(fs::create_dir(&out), |err, &sh| {
+                                err.and_then(|_| {
                                     generate_to(sh, &mut Cli::command(), "dos", &out).map(|_| ())
-                                }
-                                Err(_) => err,
+                                })
                             });
 
                     match err {
