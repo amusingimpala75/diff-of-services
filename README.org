@@ -12,8 +12,8 @@ This project will consist of a few crates (so yes in Rust) which will be develop
 Starting with CLI access until specified otherwise
 
 - [X] Nix package for CLI
-- [ ] Create document
-- [ ] Be able to add new revisions to the document
+- [X] Create document
+- [-] Be able to add new revisions to the document
   - [ ] Keep track of date added and last date checked separately?
   - [ ] Be able to move between revisions
   - [ ] Ignore adding a revision if unchanged, instead updated last checked field
