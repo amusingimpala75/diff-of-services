@@ -124,7 +124,12 @@ dependencies = [
  "clap",
  "clap_complete",
  "clap_mangen",
+ "dos-lib",
 ]
+
+[[package]]
+name = "dos-lib"
+version = "0.1.0"
 
 [[package]]
 name = "heck"
