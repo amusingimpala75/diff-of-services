@@ -37,7 +37,7 @@ impl Document {
         .collect()
     }
 
-    pub fn insert(name: &String, conn: &Connection) -> Result<Document> {
+    pub fn insert(name: &str, conn: &Connection) -> Result<Document> {
         let id = conn.query_one(
             "INSERT INTO documents (name)
              VALUES (:name)
@@ -49,19 +49,19 @@ impl Document {
         )?;
         Ok(Document {
             id,
-            name: name.clone(),
+            name: name.to_string(),
             latest_revision: None,
         })
     }
 
-    pub fn from_name(name: &String, conn: &Connection) -> Result<Document> {
+    pub fn from_name(name: &str, conn: &Connection) -> Result<Document> {
         conn.query_one(
             "SELECT id, latest_revision FROM documents WHERE name = :name",
-            named_params! { ":name": name.clone() },
+            named_params! { ":name": name },
             |row| {
                 Ok(Document {
                     id: row.get("id")?,
-                    name: name.clone(),
+                    name: name.to_string(),
                     latest_revision: row.get("latest_revision")?,
                 })
             },

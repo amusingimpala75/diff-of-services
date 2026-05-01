@@ -98,7 +98,7 @@ impl Revision {
             named_params! {
                 ":id": self.id,
             },
-            |row| row.get("text").into(),
+            |row| row.get("text"),
         );
 
         Ok(Revision {

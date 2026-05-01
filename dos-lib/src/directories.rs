@@ -5,7 +5,7 @@
 
 use std::{env, path::PathBuf};
 
-const APP_NAME: &'static str = "diff-of-services";
+const APP_NAME: &str = "diff-of-services";
 
 pub fn config_dir() -> PathBuf {
     // If on Windows, assume APPDATA exists

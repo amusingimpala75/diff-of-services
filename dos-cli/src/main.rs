@@ -2,7 +2,6 @@ use std::{fs, path::PathBuf};
 
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{generate_to, Shell};
-use clap_mangen;
 use dos_lib::{directories, document::Document, revision::Revision};
 use rusqlite::Connection;
 use time::{macros::format_description, OffsetDateTime};
@@ -90,10 +89,7 @@ fn main() {
                                 })
                             });
 
-                    match err {
-                        Err(_) => eprintln!("Error writing shell completions"),
-                        Ok(()) => {}
-                    }
+                    if err.is_err() { eprintln!("Error writing shell completions") }
                 }
             },
         },
@@ -118,13 +114,12 @@ fn main() {
         }
         Command::Create { name, text } => {
             // Ensure the path exists before we start creating the document
-            if let Some(path) = &text {
-                if !path.exists() {
+            if let Some(path) = &text
+                && !path.exists() {
                     let missing = path.display();
                     eprintln!("{missing} does not exist");
                     return;
                 }
-            }
 
             let conn = match open_connection() {
                 Some(c) => c,
@@ -199,9 +194,9 @@ fn main() {
 }
 
 fn list_documents(conn: &Connection) {
-    let docs = Document::get_all(&conn);
+    let docs = Document::get_all(conn);
 
-    if let Err(_) = docs {
+    if docs.is_err() {
         eprintln!("Could not retrieve documents from database");
         return;
     }
@@ -210,14 +205,14 @@ fn list_documents(conn: &Connection) {
 
     for doc in docs.iter() {
         let name = doc.name();
-        let num_revisions = match doc.count_revisions(&conn) {
+        let num_revisions = match doc.count_revisions(conn) {
             Ok(n) => n,
             Err(_) => {
                 eprintln!("Could not fetch document's revisions");
                 continue;
             }
         };
-        match doc.last_updated(&conn) {
+        match doc.last_updated(conn) {
             Some(t) => match t {
                 Ok(t) => {
                     let formatted = format_local_time(t);
@@ -236,7 +231,7 @@ fn list_documents(conn: &Connection) {
 }
 
 fn list_revisions(document: String, conn: &Connection) {
-    let document = match Document::from_name(&document, &conn) {
+    let document = match Document::from_name(&document, conn) {
         Ok(d) => d,
         Err(_) => {
             eprintln!("Could not find document named {document}");
@@ -244,7 +239,7 @@ fn list_revisions(document: String, conn: &Connection) {
         }
     };
 
-    let revisions = match document.revisions(&conn) {
+    let revisions = match document.revisions(conn) {
         Ok(r) => r,
         Err(_) => {
             eprintln!("Could not fetch the revisions");
@@ -261,7 +256,7 @@ fn list_revisions(document: String, conn: &Connection) {
 fn list_revision(document: String, revision: u32, conn: &Connection) {
     let idx = revision;
 
-    let document = match Document::from_name(&document, &conn) {
+    let document = match Document::from_name(&document, conn) {
         Ok(d) => d,
         Err(_) => {
             eprintln!("Could not find document named {document}");

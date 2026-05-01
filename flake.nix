@@ -52,7 +52,10 @@
 
           devShells.default = pkgs.mkShell {
             inputsFrom = [ self'.packages.cli ];
-            packages = [ pkgs.rustfmt ];
+            packages = with pkgs; [
+              clippy
+              rustfmt
+            ];
           };
         };
     };
