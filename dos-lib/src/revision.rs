@@ -1,14 +1,38 @@
 use rusqlite::{named_params, Connection, Result, Row};
 use time::{OffsetDateTime, UtcOffset};
 
+/// # Revision
+///
+/// The revision type keeps track of the revision's id, date added,
+/// and text. Additionally in the database it keeps the id of the doc
+/// for which it is a revision, but at this point in time there wasn't
+/// any use case for exposing that directly in the Rust struct.
 // [TODO] zstd compression on the text
 pub struct Revision {
+    /// Id of the revision in the database
     pub id: u32,
+    /// Time when the revision was added. Although we
+    /// show it as the local time when user asks for
+    /// the time, we internally store it local to the
+    /// timezone that it was created. We may take
+    /// advantage of this later.
     added: OffsetDateTime,
+    /// The text of the revision. This is an option since we
+    /// would like to be able to load the revision metadata
+    /// without loading the whole document's text into memory.
+    /// The database always requires the document to have a text,
+    /// we just fetch it lazily.
     pub text: Option<String>,
 }
 
 impl Revision {
+    /// Create the table for the connection if it doesn't already exist.
+    ///
+    /// The document entry is only for internal storage and isn't
+    /// exposed in the struct, although we use it when collecting
+    /// Revision metadata for a given document.
+    ///
+    /// All field must be present.
     pub fn ensure_table_exists(conn: &Connection) -> Result<()> {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS revisions (
@@ -22,6 +46,9 @@ impl Revision {
         Ok(())
     }
 
+    /// Add a new revision for document with the provided document id
+    /// and revision text. Returns a result of the revision that was
+    /// created from the database call.
     pub fn insert(document: u32, text: String, conn: &Connection) -> Result<Revision> {
         let added = OffsetDateTime::now_utc();
         let id = conn.query_one(
@@ -31,7 +58,7 @@ impl Revision {
             named_params! {
                 ":document": document,
                 ":added": added,
-                ":text": text.clone(), // [TODO] better error checking
+                ":text": text.clone(),
             },
             |row| row.get("id"),
         )?;
@@ -43,6 +70,7 @@ impl Revision {
         })
     }
 
+    /// Internal way to turn a metadata Row into the actual revision
     fn from_metadata_row(row: &Row) -> Result<Revision> {
         Ok(Revision {
             id: row.get("id")?,
@@ -51,6 +79,7 @@ impl Revision {
         })
     }
 
+    /// Fetches all revisions for a given document
     pub fn get_all(document: u32, conn: &Connection) -> Result<Vec<Revision>> {
         let mut stmt = conn.prepare(
             "SELECT id, added
@@ -64,6 +93,13 @@ impl Revision {
         .collect()
     }
 
+    /// Gets the nth revision of provided document
+    ///
+    /// Because we order on the date field this generally works,
+    /// but it is theoretically possible it could mess up since
+    /// we aren't turning all of the dates UTC, even though they
+    /// keep their timezone metadata. Thus we may need to change
+    /// it in the future.
     pub fn get_nth(idx: u32, document: u32, conn: &Connection) -> Result<Revision> {
         conn.query_one(
             "SELECT id, added
@@ -80,6 +116,7 @@ impl Revision {
         )
     }
 
+    /// Gets the revision with the given id.
     pub fn from_id(id: u32, conn: &Connection) -> Result<Revision> {
         conn.query_one(
             "SELECT id, added
@@ -90,6 +127,8 @@ impl Revision {
         )
     }
 
+    /// Loads the Revision `metadata' into the full struct
+    /// with it's corresponding text.
     pub fn load_text(self, conn: &Connection) -> Result<Revision> {
         let text = conn.query_one(
             "SELECT text
@@ -107,6 +146,8 @@ impl Revision {
         })
     }
 
+    /// Get the time this revision was added. This localizes the timezone
+    /// to the current timezone of the user.
     pub fn added_on(&self) -> OffsetDateTime {
         let offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
         self.added.to_offset(offset)
