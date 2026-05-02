@@ -1,5 +1,6 @@
 use std::fs;
 
+use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 pub mod directories;
@@ -7,28 +8,29 @@ pub mod document;
 pub mod revision;
 
 /// Open the database connection in the data directory for the application
-pub fn open_connection_file() -> Option<Connection> {
+pub fn open_connection_file() -> Result<Connection> {
     // Make sure directory exists, skipping if already exists
-    fs::create_dir_all(directories::data_dir()).ok()?;
+    fs::create_dir_all(directories::data_dir()).context("Creating data directory")?;
     // Open database
-    let conn = Connection::open(directories::data_dir().join("db.sqlite3")).ok()?;
+    let conn = Connection::open(directories::data_dir().join("db.sqlite3"))
+        .context("Opening database file")?;
     // Setup database if necessary
-    setup_connection(&conn).ok()?;
-    Some(conn)
+    setup_connection(&conn).context("Setting up database")?;
+    Ok(conn)
 }
 
 /// Create in memory connection. Only for internal testing
 #[cfg(test)]
-fn open_connection_memory() -> Option<Connection> {
+fn open_connection_memory() -> Result<Connection> {
     // Open connection
-    let conn = Connection::open_in_memory().ok()?;
+    let conn = Connection::open_in_memory()?;
     // Setup database if necessary
-    setup_connection(&conn).ok()?;
-    Some(conn)
+    setup_connection(&conn)?;
+    Ok(conn)
 }
 
 /// Setup connection, creating tables and enforcing foreign keys
-fn setup_connection(conn: &Connection) -> rusqlite::Result<()> {
+fn setup_connection(conn: &Connection) -> Result<()> {
     // Enforce foreign keys
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     // Create tables

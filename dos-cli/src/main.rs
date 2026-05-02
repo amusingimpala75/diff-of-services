@@ -1,10 +1,11 @@
 use std::{fs, path::PathBuf};
 
+use anyhow::{Context, Result, anyhow};
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
-use clap_complete::{generate_to, Shell};
+use clap_complete::{Shell, generate_to};
 use dos_lib::{document::Document, open_connection_file};
 use rusqlite::Connection;
-use time::{macros::format_description, OffsetDateTime};
+use time::{OffsetDateTime, macros::format_description};
 
 /// Command line interface to the diff of services tool
 #[derive(Parser)]
@@ -62,10 +63,7 @@ enum Command {
     ///
     /// Updates the document named `name' by adding a new revision
     /// with a body as supplied by the file specified by `path'
-    Update {
-        name: String,
-        path: PathBuf,
-    },
+    Update { name: String, path: PathBuf },
 }
 
 /// What utility action is to be performed
@@ -93,7 +91,7 @@ enum Generated {
     ShellCompletions,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Util { action } => match action {
@@ -111,12 +109,13 @@ fn main() {
 
                     // Create directory (ensures that it does not already exist)
                     // prior to generating manpages
-                    let err = fs::create_dir(&out)
-                        .and_then(|_| clap_mangen::generate_to(Cli::command(), &out));
-                    match err {
-                        Ok(()) => {}
-                        Err(err) => eprintln!("Error writing manpages: {err}"),
-                    }
+                    fs::create_dir(&out).with_context(|| {
+                        format!("creating {} for manpages", out.to_string_lossy())
+                    })?;
+                    // Generate the manpages
+                    clap_mangen::generate_to(Cli::command(), &out).with_context(|| {
+                        format!("generating manpages to {}", out.to_string_lossy())
+                    })?;
                 }
                 Generated::ShellCompletions => {
                     // Generate shell completions, into ./completions
@@ -132,235 +131,167 @@ fn main() {
                     // Generate completions, ensuring directory exists.
                     // If any error occurs in the process, skip the rest
                     // of the actions / completions.
-                    let err =
-                        Shell::value_variants()
-                            .iter()
-                            .fold(fs::create_dir(&out), |err, &sh| {
-                                err.and_then(|_| {
-                                    generate_to(sh, &mut Cli::command(), "dos", &out).map(|_| ())
-                                })
-                            });
-
-                    if err.is_err() { eprintln!("Error writing shell completions") }
+                    fs::create_dir(&out).with_context(|| {
+                        format!("creating {} for shell completions", out.to_string_lossy())
+                    })?;
+                    for &shell in Shell::value_variants() {
+                        generate_to(shell, &mut Cli::command(), "dos", &out).with_context(
+                            || {
+                                format!(
+                                    "generating shell completion for {} into {}",
+                                    shell.to_string(),
+                                    out.to_string_lossy()
+                                )
+                            },
+                        )?;
+                    }
                 }
             },
         },
         Command::List { document, revision } => {
             // List the documents / document's revision / revision's data
-            let conn = match open_connection_file() {
-                Some(c) => c,
-                None => {
-                    eprintln!("error opening database");
-                    return;
-                }
-            };
+            let conn = open_connection_file().context("opening database")?;
 
             if let Some(document) = document {
                 if let Some(revision) = revision {
-                    list_revision(document, revision, &conn);
+                    list_revision(document, revision, &conn)
                 } else {
-                    list_revisions(document, &conn);
+                    list_revisions(document, &conn)
                 }
             } else {
-                list_documents(&conn);
+                list_documents(&conn)
             }
+            .context("running listing")?;
         }
         Command::Create { name, text } => {
             // Ensure the path exists before we start creating the document
             if let Some(path) = &text
-                && !path.exists() {
-                    let missing = path.display();
-                    eprintln!("{missing} does not exist");
-                    return;
-                }
+                && !path.exists()
+            {
+                Err(anyhow!("{} does not exist", path.to_string_lossy()))?;
+            }
 
-            let conn = match open_connection_file() {
-                Some(c) => c,
-                None => {
-                    eprintln!("error opening database");
-                    return;
-                }
-            };
-
+            let conn = open_connection_file().context("opening database")?;
             // Create a new document
-            let mut doc = match Document::insert(&name, &conn) {
-                Ok(d) => d,
-                Err(_) => {
-                    eprintln!("Could not add document");
-                    return;
-                }
-            };
+            let mut doc = Document::insert(&name, &conn)
+                .with_context(|| format!("inserting document named {name}"))?;
 
             // If the user provided text of the new document
             // and the file exists, then add that as a new revision
             // on the created document
             if let Some(p) = &text {
                 // Fetch the requested file
-                let contents = match fs::read_to_string(p) {
-                    Ok(s) => s,
-                    Err(_) => {
-                        let name = p.display();
-                        eprintln!("Could not open file {name}");
-                        return;
-                    }
-                };
+                let contents = fs::read_to_string(p).with_context(|| {
+                    format!(
+                        "reading revision's text contents at {}",
+                        p.to_string_lossy()
+                    )
+                })?;
 
                 // Add a new revision upon the created document
-                if doc.add_new_revision(&contents, &conn).is_ok() {
-                    println!("Added document {name}")
-                } else {
-                    eprintln!("Could not add new revision to document")
-                };
+                doc.add_new_revision(&contents, &conn)
+                    .context("updating with new revision")?;
             }
+            println!("Created document named {name}");
         }
         Command::Update { name, path } => {
-            let conn = match open_connection_file() {
-                Some(c) => c,
-                None => {
-                    eprintln!("Could not open database");
-                    return;
-                }
-            };
+            let conn = open_connection_file().context("opening database")?;
 
             // Ensure document exists
-            let mut doc = match Document::from_name(&name, &conn) {
-                Ok(d) => d,
-                Err(_) => {
-                    eprintln!("Could not fetch document with name {name}");
-                    return;
-                }
-            };
-
+            let mut doc = Document::from_name(&name, &conn)
+                .with_context(|| format!("fetching document named {name}"))?;
             // Ensure new revision exists
-            let contents = match fs::read_to_string(&path) {
-                Ok(c) => c,
-                Err(_) => {
-                    let disp = path.display();
-                    eprintln!("Could not read revision at {disp}");
-                    return;
-                }
-            };
+            let contents = fs::read_to_string(&path).with_context(|| {
+                format!("reading update text contents at {}", path.to_string_lossy())
+            })?;
 
             // Add new revision to the document
-            let res = doc.add_new_revision(&contents, &conn);
-            if res.is_err() {
-                eprintln!("Could not add revision to document {name}");
-            } else {
-                let disp = path.display();
-                println!("Added revision {disp} to document {name}");
-            }
+            doc.add_new_revision(&contents, &conn)
+                .context("updating document with new revision")?;
+            println!(
+                "Added revision {} to document {name}",
+                path.to_string_lossy()
+            );
         }
     };
+
+    Ok(())
 }
 
 /// Print to stdout all of the documents with some corresponding metadata
-fn list_documents(conn: &Connection) {
+fn list_documents(conn: &Connection) -> Result<()> {
     // Get all documents
-    let docs = Document::get_all(conn);
-
-    if docs.is_err() {
-        eprintln!("Could not retrieve documents from database");
-        return;
-    }
-
-    let docs = docs.unwrap();
+    let docs = Document::get_all(conn).context("Fetching all documents")?;
 
     // Iterate over then all, printing name, number of revisions,
     // and localized time of the most recent revision
     for doc in docs.iter() {
         let name = doc.name();
-        let num_revisions = match doc.count_revisions(conn) {
-            Ok(n) => n,
-            Err(_) => {
-                eprintln!("Could not fetch document's revisions");
-                continue;
-            }
-        };
+        let num_revisions = doc
+            .count_revisions(conn)
+            .with_context(|| format!("Counting revisions for {name}"))?;
         match doc.last_updated(conn) {
-            Some(t) => match t {
-                Ok(t) => {
-                    let formatted = format_local_time(t);
-                    println!("{name}: {num_revisions} revisions, last updated {formatted}")
-                }
-                Err(_) => {
-                    eprintln!("Could not fetch document's latest update time");
-                }
-            },
+            Some(t) => {
+                let t = t.with_context(|| format!("fetching last updated time for {name}"))?;
+                let formatted = format_local_time(t);
+                println!("{name}: {num_revisions} revisions, last updated {formatted}");
+            }
             None => println!("{name}: {num_revisions} revisions, last updated never"),
         };
     }
 
     let count = docs.len();
     println!("{count} documents");
+
+    Ok(())
 }
 
 /// List all of the revisions for the document with the provided name
-fn list_revisions(document: String, conn: &Connection) {
+fn list_revisions(name: String, conn: &Connection) -> Result<()> {
     // Fetch document by name. Could fail if they gave a bad name
-    let document = match Document::from_name(&document, conn) {
-        Ok(d) => d,
-        Err(_) => {
-            eprintln!("Could not find document named {document}");
-            return;
-        }
-    };
-
+    let document = Document::from_name(&name, conn)
+        .with_context(|| format!("fetching document with name {name}"))?;
     // Get the revisions of the document.
-    let revisions = match document.revisions(conn) {
-        Ok(r) => r,
-        Err(_) => {
-            eprintln!("Could not fetch the revisions");
-            return;
-        }
-    };
+    let revisions = document
+        .revisions(conn)
+        .with_context(|| format!("fetching revisions for {name}"))?;
 
     // List the revisions with indices
     for (idx, revision) in revisions.iter().enumerate().rev() {
         let formatted = format_local_time(revision.added_on());
         println!("Revision #{idx} created on {formatted}")
     }
+
+    Ok(())
 }
 
 /// List the information for a given document's revision
-fn list_revision(document: String, revision: u32, conn: &Connection) {
-    let idx = revision;
-
+fn list_revision(name: String, nth: u32, conn: &Connection) -> Result<()> {
     // Ensure document exists
-    let document = match Document::from_name(&document, conn) {
-        Ok(d) => d,
-        Err(_) => {
-            eprintln!("Could not find document named {document}");
-            return;
-        }
-    };
-
+    let document = Document::from_name(&name, conn)
+        .with_context(|| format!("fetching document named {name}"))?;
     // Ensure revision exists
-    let revision = match document.nth_revision(revision, conn) {
-        Ok(r) => r,
-        Err(_) => {
-            eprintln!("Could not find revision for index named {revision}");
-            return;
-        }
-    };
-
+    let revision = document
+        .nth_revision(nth, conn)
+        .with_context(|| format!("fetching revision {nth} for {name}"))?;
     // Load the revision's text
-    let revision = match revision.load_text(conn) {
-        Ok(r) => r,
-        Err(_) => {
-            eprintln!("Could not fetch revision {idx}'s text");
-            return;
-        }
-    };
+    let revision = revision
+        .load_text(conn)
+        .with_context(|| format!("fetching text for {nth} revision of {name}"))?;
 
     // Print metadata
     let name = document.name();
     println!("Document: {name}");
-    println!("Revision: {idx}");
+    println!("Revision: {nth}");
     let formatted = format_local_time(revision.added_on());
     println!("Added: {formatted}");
     println!("Text:");
-    let text = revision.text.unwrap();
+    let text = revision
+        .text
+        .ok_or(anyhow!("revision's text was missing"))?;
     println!("{text}");
+
+    Ok(())
 }
 
 /// Formats the given time as a string. Shows date/time down to the minute
