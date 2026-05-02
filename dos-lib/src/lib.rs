@@ -34,8 +34,8 @@ fn setup_connection(conn: &Connection) -> Result<()> {
     // Enforce foreign keys
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     // Create tables
-    document::Document::ensure_table_exists(&conn)?;
-    revision::Revision::ensure_table_exists(&conn)?;
+    document::Document::ensure_table_exists(conn)?;
+    revision::Revision::ensure_table_exists(conn)?;
 
     Ok(())
 }

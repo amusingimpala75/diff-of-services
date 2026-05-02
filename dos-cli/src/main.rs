@@ -139,7 +139,7 @@ fn main() -> Result<()> {
                             || {
                                 format!(
                                     "generating shell completion for {} into {}",
-                                    shell.to_string(),
+                                    shell,
                                     out.to_string_lossy()
                                 )
                             },
