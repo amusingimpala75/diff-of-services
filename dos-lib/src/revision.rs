@@ -49,7 +49,7 @@ impl Revision {
     /// Add a new revision for document with the provided document id
     /// and revision text. Returns a result of the revision that was
     /// created from the database call.
-    pub fn insert(document: u32, text: String, conn: &Connection) -> Result<Revision> {
+    pub fn insert(document: u32, text: &str, conn: &Connection) -> Result<Revision> {
         let added = OffsetDateTime::now_utc();
         let id = conn.query_one(
             "INSERT INTO revisions (document, added, text)
@@ -58,7 +58,7 @@ impl Revision {
             named_params! {
                 ":document": document,
                 ":added": added,
-                ":text": text.clone(),
+                ":text": text,
             },
             |row| row.get("id"),
         )?;
@@ -66,7 +66,7 @@ impl Revision {
         Ok(Revision {
             id,
             added,
-            text: Some(text),
+            text: Some(text.to_string()),
         })
     }
 

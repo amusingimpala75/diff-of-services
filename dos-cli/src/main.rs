@@ -183,7 +183,7 @@ fn main() {
             };
 
             // Create a new document
-            let doc = match Document::insert(&name, &conn) {
+            let mut doc = match Document::insert(&name, &conn) {
                 Ok(d) => d,
                 Err(_) => {
                     eprintln!("Could not add document");
@@ -206,7 +206,7 @@ fn main() {
                 };
 
                 // Add a new revision upon the created document
-                if doc.add_new_revision(contents, &conn).is_ok() {
+                if doc.add_new_revision(&contents, &conn).is_ok() {
                     println!("Added document {name}")
                 } else {
                     eprintln!("Could not add new revision to document")
@@ -223,7 +223,7 @@ fn main() {
             };
 
             // Ensure document exists
-            let doc = match Document::from_name(&name, &conn) {
+            let mut doc = match Document::from_name(&name, &conn) {
                 Ok(d) => d,
                 Err(_) => {
                     eprintln!("Could not fetch document with name {name}");
@@ -242,7 +242,7 @@ fn main() {
             };
 
             // Add new revision to the document
-            let res = doc.add_new_revision(contents, &conn);
+            let res = doc.add_new_revision(&contents, &conn);
             if res.is_err() {
                 eprintln!("Could not add revision to document {name}");
             } else {

@@ -96,7 +96,7 @@ impl Document {
 
     /// Adds a new revision with the requested text and updates the latest
     /// rev to refer to it.
-    pub fn add_new_revision(&self, text: String, conn: &Connection) -> Result<()> {
+    pub fn add_new_revision(&mut self, text: &str, conn: &Connection) -> Result<Revision> {
         let rev = Revision::insert(self.id, text, conn)?;
         conn.execute(
             "UPDATE documents
@@ -107,7 +107,8 @@ impl Document {
                 ":rev": rev.id
             },
         )?;
-        Ok(())
+        self.latest_revision = Some(rev.id);
+        Ok(rev)
     }
 
     /// Gets the number of revision currently for the document
