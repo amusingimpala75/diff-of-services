@@ -157,3 +157,86 @@ impl Revision {
         self.added.to_offset(offset)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{document::Document, revision::Revision};
+
+    #[test]
+    fn ensure_table_correct_layout() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        conn.table_exists(None, "revisions").unwrap();
+
+        vec![
+            ("id", "INTEGER", "BINARY", false, true, false),
+            ("document", "INTEGER", "BINARY", true, false, false),
+            ("added", "TEXT", "BINARY", true, false, false),
+            ("text", "BLOB", "BINARY", true, false, false),
+        ]
+        .iter()
+        .for_each(|(name, t, collate, notnull, primary, autoinc)| {
+            assert!(conn.column_exists(None, "revisions", name).unwrap());
+
+            let (decl_t, decl_collate, decl_notnull, decl_primary, decl_autoinc) =
+                conn.column_metadata(None, "revisions", name).unwrap();
+
+            assert_eq!(&decl_t.unwrap().to_str().unwrap(), t);
+            assert_eq!(&decl_collate.unwrap().to_str().unwrap(), collate);
+            assert_eq!(&decl_notnull, notnull);
+            assert_eq!(&decl_primary, primary);
+            assert_eq!(&decl_autoinc, autoinc);
+        });
+    }
+
+    #[test]
+    fn insert_nodoc_fails() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        assert!(Revision::insert(0, "foo", &conn).is_err());
+    }
+
+    // Can't do tests atm for ones that take doc_id as a parameter
+    // - insert
+    // - get_all
+    // - get_nth
+
+    #[test]
+    fn from_id_invalid_fails() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        assert!(Revision::from_id(0, &conn).is_err());
+    }
+
+    #[test]
+    fn from_id_works() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let mut doc = Document::insert("foo", &conn).unwrap();
+        let rev = doc.add_new_revision("bar baz", &conn).unwrap();
+
+        let res = Revision::from_id(rev.id, &conn).unwrap();
+
+        assert_eq!(rev.id, res.id);
+        assert_eq!(rev.added, res.added);
+        assert_eq!(None, res.text);
+    }
+
+    #[test]
+    fn load_text_works() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let rev = Document::insert("foo", &conn)
+            .unwrap()
+            .add_new_revision("bar baz", &conn)
+            .unwrap();
+
+        let res = Revision::from_id(rev.id, &conn).unwrap();
+
+        assert_eq!(res.text, None);
+
+        let res = res.load_text(&conn).unwrap();
+
+        assert_eq!(res.text, rev.text);
+    }
+}
