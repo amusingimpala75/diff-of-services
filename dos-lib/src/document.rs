@@ -36,7 +36,8 @@ impl Document {
             "CREATE TABLE IF NOT EXISTS documents (
                id              INTEGER PRIMARY KEY,
                name            TEXT NOT NULL,
-               latest_revision INTEGER
+               latest_revision INTEGER,
+               FOREIGN KEY(latest_revision) REFERENCES revisions(id)
              )",
             (),
         )?;

@@ -40,7 +40,10 @@ impl Revision {
                id       INTEGER PRIMARY KEY,
                document INTEGER NOT NULL,
                added    TEXT NOT NULL,
-               text     BLOB NOT NULL
+               text     BLOB NOT NULL,
+               FOREIGN KEY(document) REFERENCES documents(id)
+                 ON DELETE CASCADE
+                 ON UPDATE CASCADE
              )",
             (),
         )?;
