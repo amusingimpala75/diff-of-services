@@ -1,4 +1,4 @@
-use rusqlite::{named_params, Connection, Result};
+use rusqlite::{Connection, Result, named_params};
 use time::OffsetDateTime;
 
 use crate::revision::Revision;
@@ -98,7 +98,7 @@ impl Document {
 
     /// Adds a new revision with the requested text and updates the latest
     /// rev to refer to it.
-    pub fn add_new_revision(&mut self, text: &str, conn: &Connection) -> Result<Revision> {
+    pub fn add_new_revision(&mut self, text: &str, conn: &Connection) -> anyhow::Result<Revision> {
         let rev = Revision::insert(self.id, text, conn)?;
         conn.execute(
             "UPDATE documents
@@ -339,10 +339,12 @@ mod tests {
     fn nth_out_of_range() {
         let conn = crate::open_connection_memory().unwrap();
 
-        assert!(Document::insert("foo", &conn)
-            .unwrap()
-            .nth_revision(0, &conn)
-            .is_err());
+        assert!(
+            Document::insert("foo", &conn)
+                .unwrap()
+                .nth_revision(0, &conn)
+                .is_err()
+        );
     }
 
     #[test]

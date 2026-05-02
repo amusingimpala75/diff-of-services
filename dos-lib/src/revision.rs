@@ -1,4 +1,5 @@
-use rusqlite::{named_params, Connection, Result, Row};
+use anyhow::Context;
+use rusqlite::{Connection, Result, Row, named_params};
 use time::{OffsetDateTime, UtcOffset};
 
 /// # Revision
@@ -7,7 +8,6 @@ use time::{OffsetDateTime, UtcOffset};
 /// and text. Additionally in the database it keeps the id of the doc
 /// for which it is a revision, but at this point in time there wasn't
 /// any use case for exposing that directly in the Rust struct.
-// [TODO] zstd compression on the text
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Revision {
     /// Id of the revision in the database
@@ -53,7 +53,9 @@ impl Revision {
     /// Add a new revision for document with the provided document id
     /// and revision text. Returns a result of the revision that was
     /// created from the database call.
-    pub fn insert(document: u32, text: &str, conn: &Connection) -> Result<Revision> {
+    pub fn insert(document: u32, text: &str, conn: &Connection) -> anyhow::Result<Revision> {
+        // Compress the text with default zstd level
+        let encoded = zstd::stream::encode_all(std::io::Cursor::new(text.as_bytes()), 0)?;
         let added = OffsetDateTime::now_utc();
         let id = conn.query_one(
             "INSERT INTO revisions (document, added, text)
@@ -62,7 +64,7 @@ impl Revision {
             named_params! {
                 ":document": document,
                 ":added": added,
-                ":text": text,
+                ":text": encoded,
             },
             |row| row.get("id"),
         )?;
@@ -133,19 +135,28 @@ impl Revision {
 
     /// Loads the Revision `metadata' into the full struct
     /// with it's corresponding text.
-    pub fn load_text(self, conn: &Connection) -> Result<Revision> {
-        let text = conn.query_one(
-            "SELECT text
+    pub fn load_text(self, conn: &Connection) -> anyhow::Result<Revision> {
+        // Read the zstd bytes
+        let encoded: Vec<u8> = conn
+            .query_one(
+                "SELECT text
              FROM revisions
              WHERE id = :id",
-            named_params! {
-                ":id": self.id,
-            },
-            |row| row.get("text"),
-        );
+                named_params! {
+                    ":id": self.id,
+                },
+                |row| row.get("text"),
+            )
+            .context("read encoded text from db")?;
+
+        // Decode the compressed text and convert to string
+        let bytes =
+            zstd::stream::decode_all(std::io::Cursor::new(encoded)).context("uncompressed text")?;
+
+        let text = String::from_utf8(bytes).context("into string")?;
 
         Ok(Revision {
-            text: text.ok(),
+            text: Some(text),
             ..self
         })
     }

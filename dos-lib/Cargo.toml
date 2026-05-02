@@ -7,3 +7,4 @@ edition = "2024"
 anyhow = "1.0.102"
 rusqlite = { version = "0.39.0", features = ["bundled", "time"] }
 time = "0.3.47"
+zstd = "0.13.3"
