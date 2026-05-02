@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf};
 
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{generate_to, Shell};
-use dos_lib::{directories, document::Document, revision::Revision};
+use dos_lib::{document::Document, open_connection_file};
 use rusqlite::Connection;
 use time::{macros::format_description, OffsetDateTime};
 
@@ -147,7 +147,7 @@ fn main() {
         },
         Command::List { document, revision } => {
             // List the documents / document's revision / revision's data
-            let conn = match open_connection() {
+            let conn = match open_connection_file() {
                 Some(c) => c,
                 None => {
                     eprintln!("error opening database");
@@ -174,7 +174,7 @@ fn main() {
                     return;
                 }
 
-            let conn = match open_connection() {
+            let conn = match open_connection_file() {
                 Some(c) => c,
                 None => {
                     eprintln!("error opening database");
@@ -214,7 +214,7 @@ fn main() {
             }
         }
         Command::Update { name, path } => {
-            let conn = match open_connection() {
+            let conn = match open_connection_file() {
                 Some(c) => c,
                 None => {
                     eprintln!("Could not open database");
@@ -367,16 +367,4 @@ fn list_revision(document: String, revision: u32, conn: &Connection) {
 fn format_local_time(time: OffsetDateTime) -> String {
     let formatter = format_description!("[year]-[month]-[day] at [hour]:[minute]");
     time.format(formatter).unwrap()
-}
-
-/// Open the database connection in the data directory for the application
-fn open_connection() -> Option<Connection> {
-    // Make sure directory exists, skipping if already exists
-    fs::create_dir_all(directories::data_dir()).ok()?;
-    // Open database
-    let conn = Connection::open(directories::data_dir().join("db.sqlite3")).ok()?;
-    // Create tables
-    Document::ensure_table_exists(&conn).ok()?;
-    Revision::ensure_table_exists(&conn).ok()?;
-    Some(conn)
 }
