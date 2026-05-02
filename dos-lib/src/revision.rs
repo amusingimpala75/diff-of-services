@@ -8,6 +8,7 @@ use time::{OffsetDateTime, UtcOffset};
 /// for which it is a revision, but at this point in time there wasn't
 /// any use case for exposing that directly in the Rust struct.
 // [TODO] zstd compression on the text
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Revision {
     /// Id of the revision in the database
     pub id: u32,

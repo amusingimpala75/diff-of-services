@@ -9,6 +9,7 @@ use crate::revision::Revision;
 /// It does not itself keep track of the contents of the revision, or last
 /// modified state. That is left to the Revision type, meaning such calls
 /// go out to the local sqlite database.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
 pub struct Document {
     /// Id of the document, would do u64 if sqlite let me
     id: u32,
@@ -142,5 +143,232 @@ impl Document {
     /// Get our name
     pub fn name(&self) -> &str {
         &self.name
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::{document::Document, revision::Revision};
+
+    #[test]
+    fn ensure_valid_database_layout() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        conn.table_exists(None, "documents").unwrap();
+
+        vec![
+            ("id", "INTEGER", "BINARY", false, true, false),
+            ("name", "TEXT", "BINARY", true, false, false),
+            ("latest_revision", "INTEGER", "BINARY", false, false, false),
+        ]
+        .iter()
+        .for_each(|row| {
+            let (name, t, collate, notnull, primary, autoincrement) = row;
+            assert!(conn.column_exists(None, "documents", name).unwrap());
+
+            let (decl_t, decl_collate, decl_notnull, decl_primary, decl_autoinc) =
+                conn.column_metadata(None, "documents", name).unwrap();
+
+            assert_eq!(&decl_t.unwrap().to_str().unwrap(), t);
+            assert_eq!(&decl_collate.unwrap().to_str().unwrap(), collate);
+            assert_eq!(&decl_notnull, notnull);
+            assert_eq!(&decl_primary, primary);
+            assert_eq!(&decl_autoinc, autoincrement);
+        });
+    }
+
+    #[test]
+    fn can_insert_document() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let name = "test";
+
+        let doc = Document::insert(name, &conn).unwrap();
+
+        assert_eq!(doc.name, name);
+
+        assert_eq!(doc.latest_revision, None);
+    }
+
+    #[test]
+    fn get_all_no_documents_empty_vec() {
+        let conn = crate::open_connection_memory().unwrap();
+        let docs = Document::get_all(&conn).unwrap();
+        assert_eq!(docs.len(), 0);
+    }
+
+    #[test]
+    fn get_all_documents_inserted() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let mut docs = vec!["1", "2", "3"]
+            .iter()
+            .map(|name| Document::insert(name, &conn).unwrap())
+            .collect::<Vec<Document>>();
+        docs.sort();
+
+        let mut res = Document::get_all(&conn).unwrap();
+        res.sort();
+
+        assert_eq!(docs, res);
+    }
+
+    #[test]
+    fn get_by_name_works() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let name = "test";
+        Document::insert(name, &conn).unwrap();
+
+        let res = Document::from_name(name, &conn).unwrap();
+        assert_eq!(res.name, name);
+    }
+
+    #[test]
+    fn by_name_err_missing() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        Document::insert("foo", &conn).unwrap();
+
+        assert!(Document::from_name("bar", &conn).is_err());
+    }
+
+    #[test]
+    fn add_new_revision_works() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let name = "foo";
+        let text = "bar baz";
+
+        let rev = Document::insert(name, &conn)
+            .unwrap()
+            .add_new_revision(text, &conn)
+            .unwrap()
+            .load_text(&conn)
+            .unwrap();
+
+        assert_eq!(rev.text.unwrap(), text);
+    }
+
+    #[test]
+    fn count_revs_empty() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        assert_eq!(
+            Document::insert("foo", &conn)
+                .unwrap()
+                .count_revisions(&conn)
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn count_revs_some() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let mut doc = Document::insert("foo", &conn).unwrap();
+
+        doc.add_new_revision("bar", &conn).unwrap();
+        doc.add_new_revision("baz", &conn).unwrap();
+
+        assert_eq!(doc.count_revisions(&conn).unwrap(), 2);
+    }
+
+    #[test]
+    fn last_update_none() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let doc = Document::insert("foo", &conn).unwrap();
+
+        assert_eq!(doc.last_updated(&conn), None);
+    }
+
+    #[test]
+    fn last_update_correct() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let mut doc = Document::insert("foo", &conn).unwrap();
+
+        doc.add_new_revision("bar", &conn).unwrap();
+        doc.add_new_revision("baz'", &conn).unwrap();
+        let rev3 = doc
+            .add_new_revision("quux", &conn)
+            .unwrap()
+            .load_text(&conn)
+            .unwrap();
+
+        assert_eq!(doc.last_updated(&conn).unwrap().unwrap(), rev3.added_on());
+    }
+
+    #[test]
+    fn revisions_empty_none() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let doc = Document::insert("foo", &conn).unwrap();
+
+        assert_eq!(doc.revisions(&conn).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn revisions_some_correct() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let doc = Document::insert("foo", &conn).unwrap();
+
+        let mut revs = vec!["1", "2", "3"]
+            .iter()
+            .map(|t| doc.clone().add_new_revision(t, &conn).unwrap())
+            .collect::<Vec<Revision>>();
+        revs.sort();
+
+        let mut res = doc
+            .revisions(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|r| r.load_text(&conn).unwrap())
+            .collect::<Vec<Revision>>();
+        res.sort();
+
+        assert_eq!(res, revs);
+    }
+
+    #[test]
+    fn nth_out_of_range() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        assert!(Document::insert("foo", &conn)
+            .unwrap()
+            .nth_revision(0, &conn)
+            .is_err());
+    }
+
+    #[test]
+    fn nth_correct() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let mut doc = Document::insert("foo", &conn).unwrap();
+
+        doc.add_new_revision("bar", &conn).unwrap();
+        let rev = doc.add_new_revision("baz", &conn).unwrap();
+        doc.add_new_revision("quux", &conn).unwrap();
+
+        assert_eq!(
+            doc.nth_revision(1, &conn)
+                .unwrap()
+                .load_text(&conn)
+                .unwrap(),
+            rev
+        );
+    }
+
+    #[test]
+    fn name_correct() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let name = "foobarbaz";
+
+        assert_eq!(Document::insert(name, &conn).unwrap().name(), name);
     }
 }
