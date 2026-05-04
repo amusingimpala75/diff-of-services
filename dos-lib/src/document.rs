@@ -22,6 +22,8 @@ pub struct Document {
     /// *need* to be an option, but we currently allow the user to create the
     /// document without a revision yet. Otherwise it really should be non-null.
     latest_revision: Option<u32>,
+    /// Last time revision was added or attempted to add but was identical
+    last_checked: OffsetDateTime,
 }
 
 impl Document {
@@ -37,6 +39,7 @@ impl Document {
                id              INTEGER PRIMARY KEY,
                name            TEXT NOT NULL,
                latest_revision INTEGER,
+               last_checked    TEXT NOT NULL,
                FOREIGN KEY(latest_revision) REFERENCES revisions(id)
              )",
             (),
@@ -47,7 +50,7 @@ impl Document {
     /// Selects all documents from the database
     pub fn get_all(conn: &Connection) -> Result<Vec<Document>> {
         let mut stmt = conn.prepare(
-            "SELECT id, name, latest_revision
+            "SELECT id, name, latest_revision, last_checked
              FROM documents",
         )?;
         stmt.query_map([], |row| {
@@ -55,6 +58,7 @@ impl Document {
                 id: row.get("id")?,
                 name: row.get("name")?,
                 latest_revision: row.get("latest_revision")?,
+                last_checked: row.get("last_checked")?,
             })
         })?
         .collect()
@@ -63,12 +67,14 @@ impl Document {
     /// Creates a new document with the given name, returning
     /// the document that has been created
     pub fn insert(name: &str, conn: &Connection) -> Result<Document> {
+        let now = OffsetDateTime::now_utc();
         let id = conn.query_one(
-            "INSERT INTO documents (name)
-             VALUES (:name)
+            "INSERT INTO documents (name, last_checked)
+             VALUES (:name, :last_checked)
              RETURNING id",
             named_params! {
                 ":name": &name,
+                ":last_checked": &now,
             },
             |row| row.get("id"),
         )?;
@@ -76,6 +82,7 @@ impl Document {
             id,
             name: name.to_string(),
             latest_revision: None,
+            last_checked: now,
         })
     }
 
@@ -84,32 +91,48 @@ impl Document {
     /// entring the name could be a bit jank.
     pub fn from_name(name: &str, conn: &Connection) -> Result<Document> {
         conn.query_one(
-            "SELECT id, latest_revision FROM documents WHERE name = :name",
+            "SELECT id, latest_revision, last_checked FROM documents WHERE name = :name",
             named_params! { ":name": name },
             |row| {
                 Ok(Document {
                     id: row.get("id")?,
                     name: name.to_string(),
                     latest_revision: row.get("latest_revision")?,
+                    last_checked: row.get("last_checked")?,
                 })
             },
         )
     }
 
     /// Adds a new revision with the requested text and updates the latest
-    /// rev to refer to it.
+    /// rev to refer to it. Also updates the last checked time. Does NOT
+    /// create a new revision if the text is identical.
     pub fn add_new_revision(&mut self, text: &str, conn: &Connection) -> anyhow::Result<Revision> {
-        let rev = Revision::insert(self.id, text, conn)?;
+        // Re-use the old revision if the text is identical
+        let rev = if let Some(id) = self.latest_revision
+            && let Ok(old) = Revision::from_id(id, conn)
+            && let Ok(texted) = old.load_text(conn)
+            && texted.text.as_ref().unwrap() == text
+        {
+            texted
+        } else {
+            Revision::insert(self.id, text, conn)?
+        };
+
+        let now = OffsetDateTime::now_utc();
         conn.execute(
             "UPDATE documents
-             SET latest_revision = :rev
+             SET latest_revision = :rev,
+                 last_checked = :now
              WHERE id = :id",
             named_params! {
                 ":id": self.id,
-                ":rev": rev.id
+                ":rev": rev.id,
+                ":now": now,
             },
         )?;
         self.latest_revision = Some(rev.id);
+        self.last_checked = now;
         Ok(rev)
     }
 
@@ -373,5 +396,17 @@ mod tests {
         let name = "foobarbaz";
 
         assert_eq!(Document::insert(name, &conn).unwrap().name(), name);
+    }
+
+    #[test]
+    fn update_identical_only_last_checked() {
+        let conn = crate::open_connection_memory().unwrap();
+
+        let mut doc = Document::insert("foo", &conn).unwrap();
+
+        let old = doc.add_new_revision("foo", &conn).unwrap();
+        let new = doc.add_new_revision("foo", &conn).unwrap();
+
+        assert_eq!(old.id, new.id);
     }
 }
