@@ -18,7 +18,7 @@ Starting with CLI access until specified otherwise
   - [X] Keep track of date added and last date checked separately?
   - [X] Be able to move between revisions
   - [X] Ignore adding a revision if unchanged, instead updated last checked field
-- [ ] Paragraph added/removed diff (basic)
+- [X] Generic diff
 - [ ] Initial TUI work
   - [ ] Nix package for TUI
   - [ ] View documents, move between revision
@@ -32,6 +32,7 @@ Starting with CLI access until specified otherwise
 
 At this point, this is the basic functionality for a single-device setup. We have a few options of directions to go after this
 - [ ] Improved diffing
+  - [ ] Paragraph added/removed diff
   - [ ] 2-way diff
   - [ ] Paragraph movement in diffs
   - [ ] If paragraph add-remove combo, do a sub-paragraph diff (word-by word, myers diff type idea)

@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use anyhow::{Context, Result, anyhow};
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{Shell, generate_to};
-use dos_lib::{document::Document, open_connection_file};
+use dos_lib::{document::Document, open_connection_file, revision::Revision};
 use rusqlite::Connection;
 use time::{OffsetDateTime, macros::format_description};
 
@@ -64,6 +64,16 @@ enum Command {
     /// Updates the document named `name' by adding a new revision
     /// with a body as supplied by the file specified by `path'
     Update { name: String, path: PathBuf },
+    /// # Diff command
+    ///
+    /// Prints a diff of the two stated revisions for the chosen
+    /// document. If no revisions are listed, they are assumed
+    /// to be the latest and the second latest.
+    Diff {
+        name: String,
+        #[arg(num_args = 2)]
+        revs: Option<Vec<u32>>,
+    },
 }
 
 /// What utility action is to be performed
@@ -212,6 +222,35 @@ fn main() -> Result<()> {
                 "Added revision {} to document {name}",
                 path.to_string_lossy()
             );
+        }
+        Command::Diff { name, revs } => {
+            let conn = open_connection_file().context("opening database")?;
+
+            let doc = Document::from_name(&name, &conn).context("fetching document")?;
+
+            let (rev1, rev2) = if let Some(revs) = revs {
+                let rev1 = revs[0];
+                let rev2 = revs[1];
+
+                (
+                    Revision::from_id(rev1, &conn).context("fetching first revision")?,
+                    Revision::from_id(rev2, &conn).context("fetching second revision")?,
+                )
+            } else {
+                let mut revs = doc.revisions(&conn).context("fetching all revisions")?;
+                revs.sort_by(|l, r| r.added_on().cmp(&l.added_on()));
+                (revs[1].clone(), revs[0].clone())
+            };
+
+            let (rev1, rev2) = (rev1.load_text(&conn)?, rev2.load_text(&conn)?);
+
+            for diff in diff::lines(&rev1.text.unwrap(), &rev2.text.unwrap()) {
+                match diff {
+                    diff::Result::Left(l) => println!("-{l}"),
+                    diff::Result::Both(l, _) => println!("{l}"),
+                    diff::Result::Right(r) => println!("+{r}"),
+                }
+            }
         }
     };
 

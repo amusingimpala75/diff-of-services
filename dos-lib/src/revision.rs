@@ -8,7 +8,7 @@ use time::{OffsetDateTime, UtcOffset};
 /// and text. Additionally in the database it keeps the id of the doc
 /// for which it is a revision, but at this point in time there wasn't
 /// any use case for exposing that directly in the Rust struct.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
 pub struct Revision {
     /// Id of the revision in the database
     pub id: u32,
