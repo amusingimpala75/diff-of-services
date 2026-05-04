@@ -3,7 +3,7 @@ name: Flake Check and Test
 'on':
   push:
     branches:
-    - master
+    - trunk
   workflow_dispatch: { }
 
 jobs:
