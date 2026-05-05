@@ -1,0 +1,9 @@
+[package]
+name = "dos-tui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+dos-lib = { version = "0.1.0", path = "../dos-lib" }
+ratatui = "0.30.0"

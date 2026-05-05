@@ -29,6 +29,8 @@
                 lockFile = ./Cargo.lock;
               };
 
+              cargoBuildFlags = [ "--bin" "dos-cli" ];
+
               nativeBuildInputs = [ pkgs.installShellFiles ];
 
               postInstall = ''
@@ -50,8 +52,30 @@
               };
             };
 
+          packages.tui = let
+            toml = lib.importTOML ./dos-tui/Cargo.toml;
+          in
+            pkgs.rustPlatform.buildRustPackage {
+              pname = "diff-of-services-tui";
+              inherit (toml.package) version;
+              src = lib.sources.cleanSource ./.;
+
+              cargoLock = {
+                lockFile = ./Cargo.lock;
+              };
+
+              cargoBuildFlags = [ "--bin" "dos-tui" ];
+
+              meta = {
+                description = "TUI for diff-of-services, a ToS tracking / diff tool";
+                homepage = "https://github.com/amusingimpala75/amusingimpala75/diff-of-services";
+                license = lib.licenses.mit;
+                mainProgram = toml.package.name;
+              };
+            };
+
           devShells.default = pkgs.mkShell {
-            inputsFrom = [ self'.packages.cli ];
+            inputsFrom = [ self'.packages.cli self'.packages.tui ];
             packages = with pkgs; [
               clippy
               rustfmt

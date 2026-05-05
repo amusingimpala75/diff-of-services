@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["dos-cli", "dos-lib"]
+members = ["dos-cli", "dos-lib", "dos-tui"]
 
 [profile.release]
 lto = "fat"
