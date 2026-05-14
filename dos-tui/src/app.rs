@@ -1,19 +1,31 @@
+use dos_lib::{document::Document, revision::Revision};
 use ratatui::{
     DefaultTerminal, Frame,
-    crossterm::event::{self, Event, KeyCode},
-    widgets::{Block, Paragraph, Widget},
+    crossterm::event::{self, Event, KeyCode, KeyModifiers},
+    layout::{Constraint, Layout},
+    style::{Style, Stylize},
+    symbols::border,
+    text::Line,
+    widgets::{Block, List, Paragraph, Widget},
 };
 
 use anyhow::Result;
 
 pub(crate) struct App {
     exit: bool,
+    documents: Vec<Document>,
+    selected_document_idx: usize,
+    revisions: Vec<Revision>,
+    selected_revision_idx: usize,
+    selected_revision: Option<Revision>,
 }
 
 impl App {
     pub(crate) fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
-        terminal.draw(|frame| self.draw(frame))?;
-        self.handle_event()?;
+        while !self.exit {
+            terminal.draw(|frame| self.draw(frame))?;
+            self.handle_event()?;
+        }
         Ok(())
     }
 
@@ -21,10 +33,53 @@ impl App {
         frame.render_widget(self, frame.area());
     }
 
+    fn set_selected_document(&mut self, idx: usize) -> Result<()> {
+        let idx = idx.clamp(0, self.documents.len());
+        self.selected_document_idx = idx;
+        self.revisions = self.documents[self.selected_document_idx]
+            .revisions(&dos_lib::open_connection_file()?)?;
+        self.revisions.reverse();
+        self.set_selected_revision(0)?;
+        Ok(())
+    }
+
+    fn set_selected_revision(&mut self, idx: usize) -> Result<()> {
+        let idx = idx.clamp(0, self.revisions.len());
+        self.selected_revision_idx = idx;
+        if self.selected_revision_idx < self.revisions.len() {
+            self.selected_revision = Some(
+                self.revisions[self.selected_revision_idx]
+                    .clone()
+                    .load_text(&dos_lib::open_connection_file()?)?,
+            );
+        } else {
+            self.selected_revision = None;
+        }
+        Ok(())
+    }
+
     fn handle_event(&mut self) -> Result<()> {
         match event::read()? {
             Event::Key(key) => match key.code {
                 KeyCode::Char('q') => self.exit = true,
+                KeyCode::Up => {
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        if self.selected_document_idx > 0 {
+                            self.set_selected_document(self.selected_document_idx - 1)?;
+                        }
+                    } else if self.selected_revision_idx > 0 {
+                        self.set_selected_revision(self.selected_revision_idx - 1)?;
+                    }
+                }
+                KeyCode::Down => {
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        if self.selected_document_idx + 1 < self.documents.len() {
+                            self.set_selected_document(self.selected_document_idx + 1)?;
+                        }
+                    } else if self.selected_revision_idx + 1 < self.revisions.len() {
+                        self.set_selected_revision(self.selected_revision_idx + 1)?;
+                    }
+                }
                 _ => {}
             },
             _ => {}
@@ -32,17 +87,82 @@ impl App {
         Ok(())
     }
 
-    pub(crate) fn default() -> Self {
-        App { exit: false }
+    pub(crate) fn default() -> Result<Self> {
+        let conn = dos_lib::open_connection_file()?;
+        let documents = Document::get_all(&conn)?;
+        let revisions = documents[0].revisions(&conn)?;
+        Ok(App {
+            exit: false,
+            documents,
+            selected_document_idx: 0,
+            revisions,
+            selected_revision_idx: 0,
+            selected_revision: None,
+        })
     }
 }
 
 impl Widget for &App {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-        let block = Block::bordered().title("Diff of Services");
-        Paragraph::new("Hello, world!\nPress 'q' to exit.")
-            .centered()
-            .block(block)
-            .render(area, buf);
+        let title = Line::from(" Diff of Services ");
+        let nav = Line::from(" S-Down / S-Up to change documents ");
+
+        let generic_border = Block::bordered().border_set(border::THICK);
+
+        let main_border = generic_border
+            .clone()
+            .title(title.centered())
+            .title_bottom(nav);
+
+        (&main_border).render(area, buf);
+
+        let [docu_select, rev_select, docu_display] = Layout::horizontal([
+            Constraint::Percentage(20),
+            Constraint::Percentage(20),
+            Constraint::Percentage(60),
+        ])
+        .areas(main_border.inner(area));
+
+        Widget::render(
+            List::new(self.documents.iter().enumerate().map(|(idx, doc)| {
+                if idx == self.selected_document_idx {
+                    doc.name().reversed()
+                } else {
+                    doc.name().into()
+                }
+            }))
+            .block(generic_border.clone())
+            .highlight_style(Style::new().reversed())
+            .highlight_symbol(">")
+            .repeat_highlight_symbol(true),
+            docu_select,
+            buf,
+        );
+
+        Widget::render(
+            List::new(self.revisions.iter().enumerate().map(|(idx, rev)| {
+                let date = dos_lib::format_local_time(rev.added_on());
+                if idx == self.selected_revision_idx {
+                    format!("{date}").reversed()
+                } else {
+                    format!("{date}").into()
+                }
+            }))
+            .block(generic_border.clone())
+            .highlight_symbol(">")
+            .highlight_style(Style::new().reversed())
+            .repeat_highlight_symbol(true),
+            rev_select,
+            buf,
+        );
+
+        Paragraph::new(
+            self.selected_revision
+                .clone()
+                .map(|rev| rev.text.unwrap())
+                .unwrap_or("".to_string()),
+        )
+        .block(generic_border.clone())
+        .render(docu_display, buf);
     }
 }

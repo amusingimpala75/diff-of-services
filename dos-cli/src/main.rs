@@ -5,7 +5,6 @@ use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{Shell, generate_to};
 use dos_lib::{document::Document, open_connection_file, revision::Revision};
 use rusqlite::Connection;
-use time::{OffsetDateTime, macros::format_description};
 
 /// Command line interface to the diff of services tool
 #[derive(Parser)]
@@ -272,7 +271,7 @@ fn list_documents(conn: &Connection) -> Result<()> {
         match doc.last_updated(conn) {
             Some(t) => {
                 let t = t.with_context(|| format!("fetching last updated time for {name}"))?;
-                let formatted = format_local_time(t);
+                let formatted = dos_lib::format_local_time(t);
                 println!("{name}: {num_revisions} revisions, last updated {formatted}");
             }
             None => println!("{name}: {num_revisions} revisions, last updated never"),
@@ -297,7 +296,7 @@ fn list_revisions(name: String, conn: &Connection) -> Result<()> {
 
     // List the revisions with indices
     for (idx, revision) in revisions.iter().enumerate().rev() {
-        let formatted = format_local_time(revision.added_on());
+        let formatted = dos_lib::format_local_time(revision.added_on());
         println!("Revision #{idx} created on {formatted}")
     }
 
@@ -322,7 +321,7 @@ fn list_revision(name: String, nth: u32, conn: &Connection) -> Result<()> {
     let name = document.name();
     println!("Document: {name}");
     println!("Revision: {nth}");
-    let formatted = format_local_time(revision.added_on());
+    let formatted = dos_lib::format_local_time(revision.added_on());
     println!("Added: {formatted}");
     println!("Text:");
     let text = revision
@@ -331,10 +330,4 @@ fn list_revision(name: String, nth: u32, conn: &Connection) -> Result<()> {
     println!("{text}");
 
     Ok(())
-}
-
-/// Formats the given time as a string. Shows date/time down to the minute
-fn format_local_time(time: OffsetDateTime) -> String {
-    let formatter = format_description!("[year]-[month]-[day] at [hour]:[minute]");
-    time.format(formatter).unwrap()
 }

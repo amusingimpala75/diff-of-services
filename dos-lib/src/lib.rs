@@ -2,6 +2,7 @@ use std::fs;
 
 use anyhow::{Context, Result};
 use rusqlite::Connection;
+use time::{OffsetDateTime, macros::format_description};
 
 pub mod directories;
 pub mod document;
@@ -38,4 +39,10 @@ fn setup_connection(conn: &Connection) -> Result<()> {
     revision::Revision::ensure_table_exists(conn)?;
 
     Ok(())
+}
+
+/// Formats the given time as a string. Shows date/time down to the minute
+pub fn format_local_time(time: OffsetDateTime) -> String {
+    let formatter = format_description!("[year]-[month]-[day] at [hour]:[minute]");
+    time.format(formatter).unwrap()
 }
