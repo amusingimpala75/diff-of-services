@@ -1,3 +1,5 @@
+use std::fs;
+
 use dos_lib::{document::Document, revision::Revision};
 use ratatui::{
     DefaultTerminal, Frame,
@@ -6,10 +8,17 @@ use ratatui::{
     style::{Style, Stylize},
     symbols::border,
     text::Line,
-    widgets::{Block, List, Paragraph, Widget, Wrap},
+    widgets::{Block, Clear, List, Paragraph, Widget, Wrap},
 };
 
 use anyhow::Result;
+
+#[derive(PartialEq, Eq)]
+enum State {
+    Base,
+    AddingDocument,
+    AddingRevision,
+}
 
 pub(crate) struct App {
     exit: bool,
@@ -20,6 +29,8 @@ pub(crate) struct App {
     selected_revision: Option<Revision>,
     previous_revision: Option<Revision>,
     vertical_scroll: u16,
+    state: State,
+    input_buffer: String,
 }
 
 impl App {
@@ -49,6 +60,7 @@ impl App {
         let idx = idx.clamp(0, self.revisions.len());
         self.selected_revision_idx = idx;
         self.vertical_scroll = 0;
+        self.previous_revision = None;
         if self.selected_revision_idx < self.revisions.len() {
             self.selected_revision = Some(
                 self.revisions[self.selected_revision_idx]
@@ -71,7 +83,13 @@ impl App {
     fn handle_event(&mut self) -> Result<()> {
         match event::read()? {
             Event::Key(key) => match key.code {
-                KeyCode::Char('q') => self.exit = true,
+                KeyCode::Esc => match self.state {
+                    State::Base => self.exit = true,
+                    _ => {
+                        self.state = State::Base;
+                        self.input_buffer = String::new();
+                    }
+                },
                 KeyCode::Up => {
                     if key.modifiers.contains(KeyModifiers::ALT) {
                         if self.selected_document_idx > 0 {
@@ -98,6 +116,42 @@ impl App {
                         self.vertical_scroll += 1;
                     }
                 }
+                KeyCode::Char(c) => {
+                    if self.state == State::Base {
+                        match c {
+                            'n' => {
+                                self.state = State::AddingDocument;
+                                self.input_buffer = String::new();
+                            }
+                            'u' => {
+                                self.state = State::AddingRevision;
+                                self.input_buffer = String::new();
+                            }
+                            _ => {}
+                        }
+                    } else {
+                        self.input_buffer.push(c);
+                    }
+                }
+                KeyCode::Enter => match self.state {
+                    State::Base => {}
+                    State::AddingDocument => {
+                        let conn = dos_lib::open_connection_file()?;
+                        let _res = dos_lib::document::Document::insert(&self.input_buffer, &conn);
+                        self.state = State::Base;
+                        self.documents = Document::get_all(&conn)?;
+                        self.set_selected_document(0)?;
+                    }
+                    State::AddingRevision => {
+                        let conn = dos_lib::open_connection_file()?;
+                        let contents = fs::read_to_string(&self.input_buffer)?;
+                        let _res = self.documents[self.selected_document_idx]
+                            .add_new_revision(&contents, &conn);
+                        self.state = State::Base;
+                        self.set_selected_document(self.selected_document_idx)?;
+                    }
+                },
+
                 _ => {}
             },
             _ => {}
@@ -117,6 +171,8 @@ impl App {
             selected_revision: None,
             previous_revision: None,
             vertical_scroll: 0,
+            state: State::Base,
+            input_buffer: String::new(),
         };
 
         app.set_selected_document(0)?;
@@ -128,9 +184,8 @@ impl App {
 impl Widget for &App {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
         let title = Line::from(" Diff of Services ");
-        let nav = Line::from(
-            " M-Down / M-Up to change documents, S-Up / S-Down to change revisions, Up / Down to scroll the document ",
-        );
+        let nav =
+            Line::from(" <N> to create a new document, <U> to update a document, <ESC> to exit ");
 
         let generic_border = Block::bordered().border_set(border::THICK);
 
@@ -156,7 +211,7 @@ impl Widget for &App {
                     doc.name().into()
                 }
             }))
-            .block(generic_border.clone())
+            .block(generic_border.clone().title_bottom(" <M-Down> / <M-Up> "))
             .highlight_style(Style::new().reversed())
             .highlight_symbol(">")
             .repeat_highlight_symbol(true),
@@ -173,7 +228,7 @@ impl Widget for &App {
                     format!("{date}").into()
                 }
             }))
-            .block(generic_border.clone())
+            .block(generic_border.clone().title_bottom(" <S-Down> / <S-Up> "))
             .highlight_symbol(">")
             .highlight_style(Style::new().reversed())
             .repeat_highlight_symbol(true),
@@ -181,7 +236,10 @@ impl Widget for &App {
             buf,
         );
 
-        (&generic_border).render(docu_display, buf);
+        (&generic_border)
+            .clone()
+            .title_bottom(" <Up> / <Down> ")
+            .render(docu_display, buf);
 
         if let Some(current_text) = self.selected_revision.clone().map(|rev| rev.text.unwrap()) {
             if let Some(previous_text) = self.previous_revision.clone().map(|rev| rev.text.unwrap())
@@ -224,6 +282,28 @@ impl Widget for &App {
                 .wrap(Wrap { trim: false })
                 .scroll((self.vertical_scroll * 5, 0))
                 .render(generic_border.inner(docu_display), buf);
+        }
+
+        match self.state {
+            State::Base => {}
+            State::AddingDocument => {
+                let block = generic_border.clone().title("Add Document");
+                let area = area.centered(Constraint::Percentage(60), Constraint::Length(3));
+                Clear.render(area, buf);
+                Paragraph::new(self.input_buffer.clone())
+                    .block(block)
+                    .render(area, buf);
+            }
+            State::AddingRevision => {
+                let block = generic_border
+                    .clone()
+                    .title("Add Revision (file path, drag-and-drop works)");
+                let area = area.centered(Constraint::Percentage(60), Constraint::Length(3));
+                Clear.render(area, buf);
+                Paragraph::new(self.input_buffer.clone())
+                    .block(block)
+                    .render(area, buf);
+            }
         }
     }
 }
