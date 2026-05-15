@@ -31,11 +31,6 @@ Starting with CLI access until specified otherwise
   - [ ] Add documents
 
 At this point, this is the basic functionality for a single-device setup. We have a few options of directions to go after this
-- [ ] Improved diffing
-  - [ ] Paragraph added/removed diff
-  - [ ] 2-way diff
-  - [ ] Paragraph movement in diffs
-  - [ ] If paragraph add-remove combo, do a sub-paragraph diff (word-by word, myers diff type idea)
 - [ ] Nix module instead of just package
 - [ ] Self-hosted sync server
   - [ ] Nix package and module (nixos vs hm?) for server

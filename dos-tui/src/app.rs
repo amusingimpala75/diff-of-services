@@ -186,16 +186,38 @@ impl Widget for &App {
         if let Some(current_text) = self.selected_revision.clone().map(|rev| rev.text.unwrap()) {
             if let Some(previous_text) = self.previous_revision.clone().map(|rev| rev.text.unwrap())
             {
-                Paragraph::new(
-                    diff::lines(&previous_text, &current_text)
-                        .iter()
-                        .map(|res| match res {
-                            diff::Result::Left(l) => Line::from(l.to_string().red()),
-                            diff::Result::Both(l, _) => Line::from(l.to_string()),
-                            diff::Result::Right(r) => Line::from(r.to_string().green()),
-                        })
-                        .collect::<Vec<_>>(),
-                )
+                let mut lines = Vec::new();
+                let line_diff = similar::TextDiff::from_lines(previous_text, current_text);
+                let mut skip = false;
+
+                for pair in line_diff.iter_all_changes().collect::<Vec<_>>().windows(2) {
+                    let (change, next) = (pair[0], pair[1]);
+                    if skip {
+                        skip = false;
+                        continue;
+                    }
+                    match change.tag() {
+                        similar::ChangeTag::Equal => lines.push(Line::from(change.value().to_string())),
+                        similar::ChangeTag::Delete => {
+                            if next.tag() == similar::ChangeTag::Insert && similar::TextDiff::from_words(change.value(), next.value()).ratio() < 0.75 {
+                                lines.push(Line::from(change.value().to_string().red()))
+                            } else {
+                                let mut text = Vec::new();
+                                for change in similar::TextDiff::from_words(change.value(), next.value()).iter_all_changes() {
+                                    match change.tag() {
+                                        similar::ChangeTag::Equal => text.push(change.value().to_string().into()),
+                                        similar::ChangeTag::Delete => text.push(change.value().to_string().on_red()),
+                                        similar::ChangeTag::Insert => text.push(change.value().to_string().on_green()),
+                                    }
+                                }
+                                lines.push(Line::from(text));
+                                skip = true;
+                            }
+                        },
+                        similar::ChangeTag::Insert => lines.push(Line::from(change.value().to_string().green())),
+                    }
+                }
+                Paragraph::new(lines)
             } else {
                 Paragraph::new(current_text)
             }
