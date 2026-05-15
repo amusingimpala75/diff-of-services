@@ -19,10 +19,10 @@ Starting with CLI access until specified otherwise
   - [X] Be able to move between revisions
   - [X] Ignore adding a revision if unchanged, instead updated last checked field
 - [X] Generic diff
-- [ ] Initial TUI work
-  - [ ] Nix package for TUI
-  - [ ] View documents, move between revision
-  - [ ] Inline diff
+- [-] Initial TUI work
+  - [X] Nix package for TUI
+  - [X] View documents, move between revision
+  - [X] Inline diff
   - [ ] Add documents (drag-and-drop vs copy-paste?)
 - [ ] Initial GUI work (unless we just roll in with trolley and do a TUI-GUI)
   - [ ] Nix package for GUI
