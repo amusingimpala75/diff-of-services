@@ -18,6 +18,7 @@ pub(crate) struct App {
     revisions: Vec<Revision>,
     selected_revision_idx: usize,
     selected_revision: Option<Revision>,
+    previous_revision: Option<Revision>,
 }
 
 impl App {
@@ -52,6 +53,13 @@ impl App {
                     .clone()
                     .load_text(&dos_lib::open_connection_file()?)?,
             );
+            if self.selected_revision_idx + 1 < self.revisions.len() {
+                self.previous_revision = Some(
+                    self.revisions[self.selected_revision_idx + 1]
+                        .clone()
+                        .load_text(&dos_lib::open_connection_file()?)?,
+                );
+            }
         } else {
             self.selected_revision = None;
         }
@@ -98,6 +106,7 @@ impl App {
             revisions,
             selected_revision_idx: 0,
             selected_revision: None,
+            previous_revision: None,
         })
     }
 }
@@ -156,13 +165,25 @@ impl Widget for &App {
             buf,
         );
 
-        Paragraph::new(
-            self.selected_revision
-                .clone()
-                .map(|rev| rev.text.unwrap())
-                .unwrap_or("".to_string()),
-        )
-        .block(generic_border.clone())
-        .render(docu_display, buf);
+        (&generic_border).render(docu_display, buf);
+
+        if let Some(current_text) = self.selected_revision.clone().map(|rev| rev.text.unwrap()) {
+            if let Some(previous_text) = self.previous_revision.clone().map(|rev| rev.text.unwrap())
+            {
+                Paragraph::new(
+                    diff::lines(&previous_text, &current_text)
+                        .iter()
+                        .map(|res| match res {
+                            diff::Result::Left(l) => Line::from(l.red()),
+                            diff::Result::Both(l, _) => Line::from(*l),
+                            diff::Result::Right(r) => Line::from(r.green()),
+                        })
+                        .collect::<Vec<_>>(),
+                )
+                .render(generic_border.inner(docu_display), buf);
+            } else {
+                Paragraph::new(current_text).render(generic_border.inner(docu_display), buf);
+            }
+        }
     }
 }
