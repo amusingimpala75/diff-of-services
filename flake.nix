@@ -74,8 +74,41 @@
               };
             };
 
+          packages.gui = let
+            toml = lib.importTOML ./dos-gui/Cargo.toml;
+          in
+            pkgs.rustPlatform.buildRustPackage {
+              pname = "diff-of-services-gui";
+              inherit (toml.package) version;
+              src = lib.sources.cleanSource ./.;
+
+              cargoLock.lockFile = ./Cargo.lock;
+
+              pnpmDeps = pkgs.fetchPnpmDeps {
+                pname = "diff-of-services-pnpm-deps";
+                inherit (toml.package) version;
+                src = lib.cleanSource ./dos-gui/frontend;
+                fetcherVersion = 3;
+                hash = "sha256-NYOJVWoTKdgCqtH+XlL06UBjdpJ9Mr6z9q1kQc+gGUY=";
+              };
+
+              pnpmRoot = "dos-gui/frontend";
+
+              preBuild = ''
+                cargo tauri icon icon.png --output dos-gui/icons
+              '';
+
+              nativeBuildInputs = with pkgs; [
+                cargo-tauri.hook
+
+                nodejs
+                pnpmConfigHook
+                pnpm
+              ];
+            };
+
           devShells.default = pkgs.mkShell {
-            inputsFrom = [ self'.packages.cli self'.packages.tui ];
+            inputsFrom = [ self'.packages.cli self'.packages.tui self'.packages.gui ];
             packages = with pkgs; [
               clippy
               rustfmt
