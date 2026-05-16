@@ -44,6 +44,8 @@
                   --fish completions/dos.fish
               '';
 
+              cargoTestFlags = [ "-p" "dos-lib" "-p" "dos-cli" ];
+
               meta = {
                 description = "CLI for diff-of-services, a ToS tracking / diff tool";
                 homepage = "https://github.com/amusingimpala75/amusingimpala75/diff-of-services";
@@ -65,6 +67,8 @@
               };
 
               cargoBuildFlags = [ "--bin" "dos-tui" ];
+
+              cargoTestFlags = [ "-p" "dos-lib" "-p" "dos-tui" ];
 
               meta = {
                 description = "TUI for diff-of-services, a ToS tracking / diff tool";
@@ -109,6 +113,8 @@
               ] ++ lib.optionals stdenv.hostPlatform.isLinux [ wrapGAppsHook4 ];
 
               buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.webkitgtk_4_1 ];
+
+              cargoTestFlags = [ "-p" "dos-lib" "-p" "dos-gui" ];
             };
 
           devShells.default = pkgs.mkShell {
