@@ -31,6 +31,7 @@ pub(crate) struct App {
     vertical_scroll: u16,
     state: State,
     input_buffer: String,
+    diffing: bool,
 }
 
 impl App {
@@ -133,6 +134,14 @@ impl App {
                         self.input_buffer.push(c);
                     }
                 }
+                KeyCode::Backspace => {
+                    if self.state != State::Base {
+                        self.input_buffer.pop();
+                    }
+                }
+                KeyCode::Tab => {
+                    self.diffing = !self.diffing;
+                }
                 KeyCode::Enter => match self.state {
                     State::Base => {}
                     State::AddingDocument => {
@@ -173,6 +182,7 @@ impl App {
             vertical_scroll: 0,
             state: State::Base,
             input_buffer: String::new(),
+            diffing: false,
         };
 
         app.set_selected_document(0)?;
@@ -184,8 +194,9 @@ impl App {
 impl Widget for &App {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
         let title = Line::from(" Diff of Services ");
-        let nav =
-            Line::from(" <N> to create a new document, <U> to update a document, <ESC> to exit ");
+        let nav = Line::from(
+            " <N> to create a new document, <U> to update a document, <TAB> to toggle diffing, <ESC> to exit ",
+        );
 
         let generic_border = Block::bordered().border_set(border::THICK);
 
@@ -242,7 +253,9 @@ impl Widget for &App {
             .render(docu_display, buf);
 
         if let Some(current_text) = self.selected_revision.clone().map(|rev| rev.text.unwrap()) {
-            if let Some(previous_text) = self.previous_revision.clone().map(|rev| rev.text.unwrap())
+            if self.diffing
+                && let Some(previous_text) =
+                    self.previous_revision.clone().map(|rev| rev.text.unwrap())
             {
                 let mut lines = Vec::new();
                 let line_diff = similar::TextDiff::from_lines(previous_text, current_text);
@@ -255,33 +268,50 @@ impl Widget for &App {
                         continue;
                     }
                     match change.tag() {
-                        similar::ChangeTag::Equal => lines.push(Line::from(change.value().to_string())),
+                        similar::ChangeTag::Equal => {
+                            lines.push(Line::from(change.value().to_string()))
+                        }
                         similar::ChangeTag::Delete => {
-                            if next.tag() == similar::ChangeTag::Insert && similar::TextDiff::from_words(change.value(), next.value()).ratio() < 0.75 {
+                            if next.tag() == similar::ChangeTag::Insert
+                                && similar::TextDiff::from_words(change.value(), next.value())
+                                    .ratio()
+                                    < 0.75
+                            {
                                 lines.push(Line::from(change.value().to_string().red()))
                             } else {
                                 let mut text = Vec::new();
-                                for change in similar::TextDiff::from_words(change.value(), next.value()).iter_all_changes() {
+                                for change in
+                                    similar::TextDiff::from_words(change.value(), next.value())
+                                        .iter_all_changes()
+                                {
                                     match change.tag() {
-                                        similar::ChangeTag::Equal => text.push(change.value().to_string().into()),
-                                        similar::ChangeTag::Delete => text.push(change.value().to_string().on_red()),
-                                        similar::ChangeTag::Insert => text.push(change.value().to_string().on_green()),
+                                        similar::ChangeTag::Equal => {
+                                            text.push(change.value().to_string().into())
+                                        }
+                                        similar::ChangeTag::Delete => {
+                                            text.push(change.value().to_string().on_red())
+                                        }
+                                        similar::ChangeTag::Insert => {
+                                            text.push(change.value().to_string().on_green())
+                                        }
                                     }
                                 }
                                 lines.push(Line::from(text));
                                 skip = true;
                             }
-                        },
-                        similar::ChangeTag::Insert => lines.push(Line::from(change.value().to_string().green())),
+                        }
+                        similar::ChangeTag::Insert => {
+                            lines.push(Line::from(change.value().to_string().green()))
+                        }
                     }
                 }
                 Paragraph::new(lines)
             } else {
                 Paragraph::new(current_text)
             }
-                .wrap(Wrap { trim: false })
-                .scroll((self.vertical_scroll * 5, 0))
-                .render(generic_border.inner(docu_display), buf);
+            .wrap(Wrap { trim: false })
+            .scroll((self.vertical_scroll * 5, 0))
+            .render(generic_border.inner(docu_display), buf);
         }
 
         match self.state {
