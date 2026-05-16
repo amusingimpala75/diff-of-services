@@ -104,6 +104,22 @@ impl Document {
         )
     }
 
+    /// Gets an existing document from the database with the given id.
+    pub fn from_id(id: u32, conn: &Connection) -> Result<Document> {
+        conn.query_one(
+            "SELECT name, latest_revision, last_checked FROM documents WHERE id = :id",
+            named_params! { ":id": id },
+            |row| {
+                Ok(Document {
+                    id,
+                    name: row.get("name")?,
+                    latest_revision: row.get("latest_revision")?,
+                    last_checked: row.get("last_checked")?,
+                })
+            },
+        )
+    }
+
     /// Adds a new revision with the requested text and updates the latest
     /// rev to refer to it. Also updates the last checked time. Does NOT
     /// create a new revision if the text is identical.
@@ -167,6 +183,10 @@ impl Document {
     /// Get our name
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn id(&self) -> u32 {
+        self.id
     }
 }
 
