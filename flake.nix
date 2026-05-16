@@ -108,7 +108,7 @@
                 pkg-config
               ] ++ lib.optionals stdenv.hostPlatform.isLinux [ wrapGAppsHook ];
 
-              buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.webkitgkt_4_1 ];
+              buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.webkitgtk_4_1 ];
             };
 
           devShells.default = pkgs.mkShell {
