@@ -106,7 +106,7 @@
                 pnpm
 
                 pkg-config
-              ] ++ lib.optionals stdenv.hostPlatform.isLinux [ wrapGAppsHook ];
+              ] ++ lib.optionals stdenv.hostPlatform.isLinux [ wrapGAppsHook4 ];
 
               buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.webkitgtk_4_1 ];
             };
