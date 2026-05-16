@@ -104,7 +104,11 @@
                 nodejs
                 pnpmConfigHook
                 pnpm
-              ];
+
+                pkg-config
+              ] ++ lib.optionals stdenv.hostPlatform.isLinux [ wrapGAppsHook ];
+
+              buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.webkitgkt_4_1 ];
             };
 
           devShells.default = pkgs.mkShell {
