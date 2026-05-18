@@ -908,12 +908,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diff"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8"
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1018,14 +1012,13 @@ dependencies = [
 name = "dos-cli"
 version = "0.1.0"
 dependencies = [
+ "anstyle",
  "anyhow",
  "clap",
  "clap_complete",
  "clap_mangen",
- "diff",
  "dos-lib",
  "rusqlite",
- "time",
 ]
 
 [[package]]
@@ -1047,6 +1040,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "rusqlite",
+ "serde",
+ "similar",
  "time",
  "zstd",
 ]
@@ -1056,10 +1051,8 @@ name = "dos-tui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "diff",
  "dos-lib",
  "ratatui",
- "similar",
 ]
 
 [[package]]

@@ -1,9 +1,10 @@
 use std::{fs, path::PathBuf};
 
+use anstyle::{AnsiColor, Color};
 use anyhow::{Context, Result, anyhow};
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{Shell, generate_to};
-use dos_lib::{document::Document, open_connection_file, revision::Revision};
+use dos_lib::{diff, document::Document, open_connection_file, revision::Revision};
 use rusqlite::Connection;
 
 /// Command line interface to the diff of services tool
@@ -243,11 +244,16 @@ fn main() -> Result<()> {
 
             let (rev1, rev2) = (rev1.load_text(&conn)?, rev2.load_text(&conn)?);
 
-            for diff in diff::lines(&rev1.text.unwrap(), &rev2.text.unwrap()) {
-                match diff {
-                    diff::Result::Left(l) => println!("-{l}"),
-                    diff::Result::Both(l, _) => println!("{l}"),
-                    diff::Result::Right(r) => println!("+{r}"),
+            let red = anstyle::Style::new().bg_color(Some(Color::Ansi(AnsiColor::Red)));
+            let green = anstyle::Style::new().bg_color(Some(Color::Ansi(AnsiColor::Green)));
+
+            for line in diff::diff_lines_words(&rev1.text.unwrap(), &rev2.text.unwrap()) {
+                for span in line {
+                    match span.r#type {
+                        diff::DiffType::Add => print!("{green}{}{green:#}", span.text),
+                        diff::DiffType::Remove => print!("{red}{}{red:#}", span.text),
+                        diff::DiffType::Same => print!("{}", span.text),
+                    }
                 }
             }
         }

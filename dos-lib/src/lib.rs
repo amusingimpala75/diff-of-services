@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 use time::{OffsetDateTime, macros::format_description};
 
+pub mod diff;
 pub mod directories;
 pub mod document;
 pub mod revision;

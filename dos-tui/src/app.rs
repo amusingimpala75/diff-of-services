@@ -1,6 +1,6 @@
 use std::fs;
 
-use dos_lib::{document::Document, revision::Revision};
+use dos_lib::{diff::DiffType, document::Document, revision::Revision};
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{self, Event, KeyCode, KeyModifiers},
@@ -257,54 +257,33 @@ impl Widget for &App {
                 && let Some(previous_text) =
                     self.previous_revision.clone().map(|rev| rev.text.unwrap())
             {
-                let mut lines = Vec::new();
-                let line_diff = similar::TextDiff::from_lines(previous_text, current_text);
-                let mut skip = false;
+                let diff = dos_lib::diff::diff_lines_words(&previous_text, &current_text);
 
-                for pair in line_diff.iter_all_changes().collect::<Vec<_>>().windows(2) {
-                    let (change, next) = (pair[0], pair[1]);
-                    if skip {
-                        skip = false;
-                        continue;
-                    }
-                    match change.tag() {
-                        similar::ChangeTag::Equal => {
-                            lines.push(Line::from(change.value().to_string()))
+                let mut lines = Vec::new();
+                for line in diff {
+                    if line.len() == 1 {
+                        match line[0].r#type {
+                            DiffType::Add => {
+                                lines.push(Line::from(line[0].text.to_string().green()))
+                            }
+                            DiffType::Remove => {
+                                lines.push(Line::from(line[0].text.to_string().red()))
+                            }
+                            DiffType::Same => lines.push(Line::from(line[0].text.to_string())),
                         }
-                        similar::ChangeTag::Delete => {
-                            if next.tag() == similar::ChangeTag::Insert
-                                && similar::TextDiff::from_words(change.value(), next.value())
-                                    .ratio()
-                                    < 0.75
-                            {
-                                lines.push(Line::from(change.value().to_string().red()))
-                            } else {
-                                let mut text = Vec::new();
-                                for change in
-                                    similar::TextDiff::from_words(change.value(), next.value())
-                                        .iter_all_changes()
-                                {
-                                    match change.tag() {
-                                        similar::ChangeTag::Equal => {
-                                            text.push(change.value().to_string().into())
-                                        }
-                                        similar::ChangeTag::Delete => {
-                                            text.push(change.value().to_string().on_red())
-                                        }
-                                        similar::ChangeTag::Insert => {
-                                            text.push(change.value().to_string().on_green())
-                                        }
-                                    }
-                                }
-                                lines.push(Line::from(text));
-                                skip = true;
+                    } else {
+                        let mut text = Vec::new();
+                        for span in line {
+                            match span.r#type {
+                                DiffType::Add => text.push(span.text.to_string().green()),
+                                DiffType::Remove => text.push(span.text.to_string().on_red()),
+                                DiffType::Same => text.push(span.text.to_string().into()),
                             }
                         }
-                        similar::ChangeTag::Insert => {
-                            lines.push(Line::from(change.value().to_string().green()))
-                        }
+                        lines.push(Line::from(text));
                     }
                 }
+
                 Paragraph::new(lines)
             } else {
                 Paragraph::new(current_text)
