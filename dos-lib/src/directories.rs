@@ -43,7 +43,7 @@ impl DefaultDirs {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 impl DefaultDirs {
     fn config() -> PathBuf {
         PathBuf::from(std::env::var("HOME").unwrap())

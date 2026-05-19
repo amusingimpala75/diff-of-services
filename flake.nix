@@ -124,6 +124,17 @@
               rustfmt
             ];
           };
+          devShells.ios = pkgs.mkShell {
+            inputsFrom = [ self'.devShells.default ];
+            packages = with pkgs; [
+              cocoapods
+              iconv
+              libimobiledevice
+              llvmPackages.clang-unwrapped
+              rustup
+              xcodegen
+            ];
+          };
         };
     };
 }

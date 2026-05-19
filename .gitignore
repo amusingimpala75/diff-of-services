@@ -4,7 +4,7 @@
 /man
 
 # Tauri
-/dos-gui/gen/schemas
+/dos-gui/gen/
 /dos-gui/icons
 
 # PNPM

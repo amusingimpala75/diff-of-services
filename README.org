@@ -24,10 +24,10 @@ Starting with CLI access until specified otherwise
   - [X] View documents, move between revision
   - [X] Inline diff
   - [ ] Add documents (drag-and-drop vs copy-paste?)
-- [ ] Initial GUI work (unless we just roll in with trolley and do a TUI-GUI)
-  - [ ] Nix package for GUI
-  - [ ] View documents, move between revisions
-  - [ ] Inline diff
+- [-] Initial GUI work (unless we just roll in with trolley and do a TUI-GUI)
+  - [X] Nix package for GUI
+  - [X] View documents, move between revisions
+  - [X] Inline diff
   - [ ] Add documents
 
 At this point, this is the basic functionality for a single-device setup. We have a few options of directions to go after this
