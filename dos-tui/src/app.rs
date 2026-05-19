@@ -82,8 +82,8 @@ impl App {
     }
 
     fn handle_event(&mut self) -> Result<()> {
-        match event::read()? {
-            Event::Key(key) => match key.code {
+        if let Event::Key(key) = event::read()? {
+            match key.code {
                 KeyCode::Esc => match self.state {
                     State::Base => self.exit = true,
                     _ => {
@@ -162,8 +162,7 @@ impl App {
                 },
 
                 _ => {}
-            },
-            _ => {}
+            }
         }
         Ok(())
     }
@@ -234,9 +233,9 @@ impl Widget for &App {
             List::new(self.revisions.iter().enumerate().map(|(idx, rev)| {
                 let date = dos_lib::format_local_time(rev.added_on());
                 if idx == self.selected_revision_idx {
-                    format!("{date}").reversed()
+                    date.to_string().reversed()
                 } else {
-                    format!("{date}").into()
+                    date.to_string().into()
                 }
             }))
             .block(generic_border.clone().title_bottom(" <S-Down> / <S-Up> "))
@@ -247,7 +246,7 @@ impl Widget for &App {
             buf,
         );
 
-        (&generic_border)
+        generic_border
             .clone()
             .title_bottom(" <Up> / <Down> ")
             .render(docu_display, buf);

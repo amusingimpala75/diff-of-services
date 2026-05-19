@@ -238,7 +238,7 @@ fn main() -> Result<()> {
                 )
             } else {
                 let mut revs = doc.revisions(&conn).context("fetching all revisions")?;
-                revs.sort_by(|l, r| r.added_on().cmp(&l.added_on()));
+                revs.sort_by_key(|r| std::cmp::Reverse(r.added_on()));
                 (revs[1].clone(), revs[0].clone())
             };
 
