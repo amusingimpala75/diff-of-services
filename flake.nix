@@ -117,24 +117,27 @@
               cargoTestFlags = [ "-p" "dos-lib" "-p" "dos-gui" ];
             };
 
-          devShells.default = pkgs.mkShell {
-            inputsFrom = [ self'.packages.cli self'.packages.tui self'.packages.gui ];
-            packages = with pkgs; [
-              clippy
-              rustfmt
-            ];
+          devShells = {
+            default = pkgs.mkShell {
+              inputsFrom = [ self'.packages.cli self'.packages.tui self'.packages.gui ];
+              packages = with pkgs; [
+                clippy
+                rustfmt
+              ];
+            };
+          } // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
+            ios = pkgs.mkShell {
+              inputsFrom = [ self'.devShells.default ];
+              packages = with pkgs; [
+                cocoapods
+                iconv
+                libimobiledevice
+                llvmPackages.clang-unwrapped
+                rustup
+                xcodegen
+              ];
+            };
           };
-          devShells.ios = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin (pkgs.mkShell {
-            inputsFrom = [ self'.devShells.default ];
-            packages = with pkgs; [
-              cocoapods
-              iconv
-              libimobiledevice
-              llvmPackages.clang-unwrapped
-              rustup
-              xcodegen
-            ];
-          });
         };
     };
 }
