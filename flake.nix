@@ -124,7 +124,7 @@
               rustfmt
             ];
           };
-          devShells.ios = pkgs.mkShell {
+          devShells.ios = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin (pkgs.mkShell {
             inputsFrom = [ self'.devShells.default ];
             packages = with pkgs; [
               cocoapods
@@ -134,7 +134,7 @@
               rustup
               xcodegen
             ];
-          };
+          });
         };
     };
 }
