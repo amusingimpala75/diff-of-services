@@ -9,18 +9,19 @@
   </head>
 
   <body>
-    <main class="container">
-      <select id="documents"> </select>
-      <select id="revisions"> </select>
-      <div id="diff-type">
-        <input type="radio" id="no-diff" name="diff-type" value="none" checked/>
-        <label for="no-diff">None</label>
-        <input type="radio" id="inline-diff" name="diff-type" value="inline" />
-        <label for="inline-diff">Inline</label>
-        <input type="radio" id="2col-diff" name="diff-type" value="2col" />
-        <label for="2col-diff">Side-by-Side</label>
-      </div>
-      <div id="document-revision-text" />
-    </main>
+    <select id="documents"> </select>
+    <select id="revisions"> </select>
+    <button type="button" id="add-revision">
+      Add Revision
+    </button>
+    <div id="diff-type">
+      <input type="radio" id="no-diff" name="diff-type" value="none" checked/>
+      <label for="no-diff">None</label>
+      <input type="radio" id="inline-diff" name="diff-type" value="inline" />
+      <label for="inline-diff">Inline</label>
+      <input type="radio" id="2col-diff" name="diff-type" value="2col" />
+      <label for="2col-diff">Side-by-Side</label>
+    </div>
+    <div id="document-revision-text" />
   </body>
 </html>

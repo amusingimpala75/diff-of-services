@@ -7,8 +7,8 @@
   color: var(--black);
   background-color: var(--white);
 
-  --black: #0f0f0f;
-  --white: #f6f6f6;
+  --black: #2e3440;
+  --white: #eceff4;
   --red: #bf616a;
   --green: #a3be8c;
 
@@ -17,15 +17,6 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
 }
 
 #document-revision-text {
@@ -47,10 +38,9 @@
 }
 
 .column {
-    float: left;
-    /* width: 50%; */
-    width: calc(50% - 32px);
-    margin: 16px;
+  float: left;
+  width: calc(50% - 32px);
+  margin: 16px;
 }
 
 @media (prefers-color-scheme: dark) {

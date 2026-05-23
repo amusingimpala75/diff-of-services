@@ -1,0 +1,9 @@
+{
+  "files": {
+    "includes": ["*.html", "src/**/*.ts", "src/**/*.css"]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2
+  }
+}

@@ -121,6 +121,7 @@
             default = pkgs.mkShell {
               inputsFrom = [ self'.packages.cli self'.packages.tui self'.packages.gui ];
               packages = with pkgs; [
+                biome
                 clippy
                 rustfmt
               ];

@@ -6,13 +6,13 @@ let textElement: HTMLDivElement;
 let diffRadios: [HTMLInputElement];
 
 interface Revision {
-  id: number,
-  date_added: Date,
+  id: number;
+  date_added: Date;
 }
 
 interface Document {
-  id: number,
-  name: string,
+  id: number;
+  name: string;
 }
 
 async function loadDocuments() {
@@ -60,8 +60,8 @@ async function updateDocument() {
 }
 
 async function updateRevision() {
-  while (textElement.children.length > 0) {
-    textElement.removeChild(textElement.firstChild!);
+  while (textElement.firstChild) {
+    textElement.removeChild(textElement.firstChild);
   }
 
   if (revisionSelect.value === "") {
@@ -86,7 +86,6 @@ async function updateRevision() {
 }
 
 async function updateRevisionPlainText() {
-
   const text: string = await invoke("get_revision_content", {
     id: parseInt(revisionSelect.value, 10),
   });
@@ -101,12 +100,12 @@ async function updateRevisionPlainText() {
 enum DiffType {
   ADD = "Add",
   REMOVE = "Remove",
-  SAME = "Same"
+  SAME = "Same",
 }
 
 interface DiffSegment {
-  text: string,
-  type: DiffType
+  text: string;
+  type: DiffType;
 }
 
 async function updateRevisionInlineDiff() {
@@ -115,7 +114,8 @@ async function updateRevisionInlineDiff() {
     return;
   }
   const current = revisionSelect.value;
-  const previous = revisionSelect.options[revisionSelect.selectedIndex + 1].value;
+  const previous =
+    revisionSelect.options[revisionSelect.selectedIndex + 1].value;
 
   const diff: [[DiffSegment]] = await invoke("get_revision_diff", {
     old: parseInt(previous, 10),
@@ -151,7 +151,8 @@ async function updateRevisionDiff2Col() {
     return;
   }
   const current = revisionSelect.value;
-  const previous = revisionSelect.options[revisionSelect.selectedIndex + 1].value;
+  const previous =
+    revisionSelect.options[revisionSelect.selectedIndex + 1].value;
 
   const diff: [[DiffSegment]] = await invoke("get_revision_diff", {
     old: parseInt(previous, 10),
@@ -181,7 +182,7 @@ async function updateRevisionDiff2Col() {
       switch (segment.type) {
         case DiffType.ADD:
           lspan.classList.add("hidden");
-          rspan.classList.add("diff-add")
+          rspan.classList.add("diff-add");
           break;
         case DiffType.REMOVE:
           lspan.classList.add("diff-remove");
@@ -197,15 +198,30 @@ async function updateRevisionDiff2Col() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  documentSelect = document.querySelector("#documents")!;
-  revisionSelect = document.querySelector("#revisions")!;
-  textElement = document.querySelector("#document-revision-text")!;
-  diffRadios = <[HTMLInputElement]> Array.from(document.querySelector("#diff-type")!.children);
+  const ds = document.querySelector<HTMLSelectElement>("#documents");
+  const rs = document.querySelector<HTMLSelectElement>("#revisions");
+  const te = document.querySelector<HTMLDivElement>("#document-revision-text");
+
+  if (!ds || !rs || !te) {
+    throw new Error("Invalid document state, missing key elements");
+  }
+
+  documentSelect = ds;
+  revisionSelect = rs;
+  textElement = te;
+
+  diffRadios = <[HTMLInputElement]>(
+    Array.from(document.querySelector("#diff-type")?.children)
+  );
 
   documentSelect.addEventListener("change", updateDocument);
   revisionSelect.addEventListener("change", updateRevision);
-  diffRadios.map(radio => {
+  diffRadios.forEach((radio) => {
     radio.addEventListener("change", updateRevision);
+  });
+
+  document.querySelector("#add-revision")?.addEventListener("click", () => {
+    window.location.replace("/revision");
   });
 
   loadDocuments();
