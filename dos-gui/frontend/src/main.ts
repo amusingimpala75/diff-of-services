@@ -201,8 +201,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const ds = document.querySelector<HTMLSelectElement>("#documents");
   const rs = document.querySelector<HTMLSelectElement>("#revisions");
   const te = document.querySelector<HTMLDivElement>("#document-revision-text");
+  const dr = document.querySelector("#diff-type")?.children;
 
-  if (!ds || !rs || !te) {
+  if (!ds || !rs || !te || !dr) {
     throw new Error("Invalid document state, missing key elements");
   }
 
@@ -210,9 +211,7 @@ window.addEventListener("DOMContentLoaded", () => {
   revisionSelect = rs;
   textElement = te;
 
-  diffRadios = <[HTMLInputElement]>(
-    Array.from(document.querySelector("#diff-type")?.children)
-  );
+  diffRadios = <[HTMLInputElement]>(Array.from(dr));
 
   documentSelect.addEventListener("change", updateDocument);
   revisionSelect.addEventListener("change", updateRevision);
