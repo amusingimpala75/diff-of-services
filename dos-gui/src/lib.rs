@@ -62,7 +62,7 @@ fn get_document_revisions(id: u32) -> Result<Vec<RevisionStub>, String> {
         Ok(revs) => revs,
         Err(_) => {
             return Err(format!(
-                "coudl not fetch the revisions for document with id {id}"
+                "could not fetch the revisions for document with id {id}"
             ));
         }
     };
@@ -123,6 +123,37 @@ fn get_revision_diff(old: u32, new: u32) -> Result<Vec<Vec<diff::DiffSegment>>, 
     Ok(diff::diff_lines_words(&old_text, &new_text))
 }
 
+#[tauri::command]
+fn add_revision(id: u32, text: String) -> Result<(), String> {
+    let connection = match dos_lib::open_connection_file() {
+        Ok(conn) => conn,
+        Err(_) => return Err("could not open connection".to_string()),
+    };
+
+    let mut doc = match Document::from_id(id, &connection) {
+        Ok(doc) => doc,
+        Err(err) => return Err(format!("could not fetch document: {err}")),
+    };
+
+    match doc.add_new_revision(&text, &connection) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(format!("could not add revision: {err}")),
+    }
+}
+
+#[tauri::command]
+fn add_document(name: String) -> Result<(), String> {
+    let connection = match dos_lib::open_connection_file() {
+        Ok(conn) => conn,
+        Err(_) => return Err("could not open connection".to_string()),
+    };
+
+    match Document::insert(&name, &connection) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(format!("could not add document: {err}")),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -140,7 +171,9 @@ pub fn run() {
             get_all_documents,
             get_document_revisions,
             get_revision_content,
-            get_revision_diff
+            get_revision_diff,
+            add_document,
+            add_revision,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

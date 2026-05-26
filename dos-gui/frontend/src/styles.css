@@ -11,12 +11,17 @@
   --white: #eceff4;
   --red: #bf616a;
   --green: #a3be8c;
+  --blue: #81a1c1;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+}
+
+a {
+  color: var(--blue);
 }
 
 #document-revision-text {

@@ -9,11 +9,28 @@
   </head>
 
   <body>
-    <select id="documents"> </select>
-    <select id="revisions"> </select>
-    <button type="button" id="add-revision">
-      Add Revision
-    </button>
+    <div>
+      <label for="document">Document</label>
+      <select id="documents"> </select>
+    </div>
+
+    <div>
+      <label for="revision">Revision</label>
+      <select id="revisions"> </select>
+    </div>
+
+    <form id="add-document-form">
+      <label>Document Name</label>
+      <input type="text" id="add-document-name"/>
+      <input type="submit" value="Add document">
+    </form>
+
+    <form id="add-revision-form">
+      <label for="revision-file">Revision Text File</label>
+      <input name="revision-file" id="revision-file" type="file" />
+      <input type="submit" value="Add Revision">
+    </form>
+
     <div id="diff-type">
       <input type="radio" id="no-diff" name="diff-type" value="none" checked/>
       <label for="no-diff">None</label>

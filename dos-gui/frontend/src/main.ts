@@ -3,7 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 let documentSelect: HTMLSelectElement;
 let revisionSelect: HTMLSelectElement;
 let textElement: HTMLDivElement;
-let diffRadios: [HTMLInputElement];
+let diffRadios: HTMLInputElement[];
+let addDocumentElem: HTMLInputElement;
+let addRevisionElem: HTMLInputElement;
 
 interface Revision {
   id: number;
@@ -197,21 +199,56 @@ async function updateRevisionDiff2Col() {
   }
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  const ds = document.querySelector<HTMLSelectElement>("#documents");
-  const rs = document.querySelector<HTMLSelectElement>("#revisions");
-  const te = document.querySelector<HTMLDivElement>("#document-revision-text");
-  const dr = document.querySelector("#diff-type")?.children;
+async function addDocument(event: SubmitEvent) {
+  event.preventDefault();
+  if (addDocumentElem.value !== "") {
+    await invoke("add_document", {
+      name: addDocumentElem.value,
+    });
 
-  if (!ds || !rs || !te || !dr) {
-    throw new Error("Invalid document state, missing key elements");
+    addDocumentElem.value = "";
+
+    loadDocuments();
   }
+}
 
-  documentSelect = ds;
-  revisionSelect = rs;
-  textElement = te;
+async function addRevision(event: SubmitEvent) {
+  event.preventDefault();
+  if (addRevisionElem.files !== null && addRevisionElem.files.length > 0) {
+    const file = addRevisionElem.files[0];
 
-  diffRadios = <[HTMLInputElement]>(Array.from(dr));
+    await invoke("add_revision", {
+      id: parseInt(documentSelect.value, 10),
+      text: await file.text(),
+    });
+
+    addRevisionElem.value = "";
+
+    updateDocument();
+  }
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  documentSelect = document.getElementById("documents") as HTMLSelectElement;
+  revisionSelect = document.getElementById("revisions") as HTMLSelectElement;
+  textElement = document.getElementById(
+    "document-revision-text",
+  ) as HTMLDivElement;
+  diffRadios = Array.from(
+    document.getElementById("diff-type")?.children as HTMLCollection,
+  ) as HTMLInputElement[];
+  addDocumentElem = document.getElementById(
+    "add-document-name",
+  ) as HTMLInputElement;
+  const addDocForm = document.getElementById(
+    "add-document-form",
+  ) as HTMLFormElement;
+  addRevisionElem = document.getElementById(
+    "revision-file",
+  ) as HTMLInputElement;
+  const addRevForm = document.getElementById(
+    "add-revision-form",
+  ) as HTMLFormElement;
 
   documentSelect.addEventListener("change", updateDocument);
   revisionSelect.addEventListener("change", updateRevision);
@@ -219,9 +256,8 @@ window.addEventListener("DOMContentLoaded", () => {
     radio.addEventListener("change", updateRevision);
   });
 
-  document.querySelector("#add-revision")?.addEventListener("click", () => {
-    window.location.replace("/revision");
-  });
+  addDocForm.addEventListener("submit", addDocument);
+  addRevForm.addEventListener("submit", addRevision);
 
   loadDocuments();
 });
