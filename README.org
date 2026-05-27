@@ -7,7 +7,10 @@ At this point in time, I cannot guarantee stability in the database format. At s
 I dislike how long Terms of Services tend to be, but I deem it necessary for me to read them in their entirety. Unfortunately, the companies have a tendency to randomly change things, which becomes prohibitively expensive to re-read it each time there is a change, as it can often be minor. Thus I am creating this utility so that one can keep track of the changes and merely look over a diff of the changes between document version, to make it more feasible to read every version of the terms of service to which one agrees.
 
 * Structure
-This project will consist of a few crates (so yes in Rust) which will be developed in (approximately) the following order: a core api for managing things, a CLI to query or add documents, a Ratatui TUI to make easier viewing, a cross-platform Dioxus GUI, and finally a self-hostable server so one can sync between their various devices.
+This project will consist of a few crates (so yes in Rust) which will be developed in (approximately) the following order: a core api for managing things, a CLI to query or add documents, a Ratatui TUI to make easier viewing, a cross-platform Tauri webapp, and finally a self-hostable server so one can sync between their various devices.
+
+* Building
+For the cli, run =cargo build --bin dos-cli=, and for the tui the same but =dos-tui=. To build the GUI for desktop run =cargo tauri build=, and for iOS run =cd dos-gui && bash ios.sh=. It /should/ work although it might make you install the ios toolchain with rustup, not sure; everything else *should* be taken care of. There are also nix packages provided for the cli, tui, and gui.
 
 * Roadmap
 Starting with CLI access until specified otherwise
@@ -19,16 +22,17 @@ Starting with CLI access until specified otherwise
   - [X] Be able to move between revisions
   - [X] Ignore adding a revision if unchanged, instead updated last checked field
 - [X] Generic diff
-- [-] Initial TUI work
+- [X] Initial TUI work
   - [X] Nix package for TUI
   - [X] View documents, move between revision
   - [X] Inline diff
-  - [ ] Add documents (drag-and-drop vs copy-paste?)
-- [-] Initial GUI work (unless we just roll in with trolley and do a TUI-GUI)
+  - [X] Add documents (drag-and-drop vs copy-paste?)
+- [X] Initial GUI work
   - [X] Nix package for GUI
   - [X] View documents, move between revisions
   - [X] Inline diff
-  - [ ] Add documents
+  - [X] Add documents
+  - [ ] Nice styling of CSS
 
 At this point, this is the basic functionality for a single-device setup. We have a few options of directions to go after this
 - [ ] Nix module instead of just package
@@ -37,6 +41,7 @@ At this point, this is the basic functionality for a single-device setup. We hav
   - [ ] Central storage, client support remote connection
   - [ ] Clients keep local copy of latest revision of all (or maybe allow selection) docs + changes since last sync
   - [ ] Docker image
+- [ ] Proper PDF text extraction
 - [ ] Extract from HTML document
   - [ ] Check for update
   - [ ] Once server implemented, also support autoupdate

@@ -16,9 +16,12 @@ fi
 
 if [ ! -d gen/apple ]
 then
-    cargo tauri ios init
-    sed -i 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' gen/apple/dos-gui.xcodeproj/project.pbxproj
+    nix develop .#ios -c sh -c 'cargo tauri ios init'
+    nix develop .#ios -c sed -i 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' gen/apple/dos-gui.xcodeproj/project.pbxproj
 fi
+
+(cd frontend && nix develop .#ios -c pnpm install)
+nix develop .#ios -c cargo tauri icon ../icon.png
 
 # This will fail because it won't sign the output, but that's
 # ok since we'll just generate the ipa from the archive manually
@@ -28,4 +31,4 @@ nix develop .#ios -c sh -c 'unset SDKROOT; PATH="$PWD/gen/path:$PATH" OTHER_LDFL
 mkdir gen/Payload
 
 cp -r "gen/apple/build/dos-gui_iOS.xcarchive/Products/Applications/Diff of Services.app" gen/Payload/
-zip -r gen/App.ipa gen/Payload
+(cd gen && zip -r App.ipa Payload)
